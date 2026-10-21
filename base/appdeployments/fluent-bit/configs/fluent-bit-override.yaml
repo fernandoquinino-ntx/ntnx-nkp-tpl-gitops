@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-override
+  namespace: kommander
+# data.values.yaml contains the Helm values for the fluent-bit ClusterApp.
+# Use ${VAR} placeholders for cluster-specific settings.
+# IMPORTANT: Do NOT omit top-level keys — Helm replaces lists wholesale.
+# If you want the chart default, include it explicitly here.
+data:
+  values.yaml: |
+    # Fluent Bit image configuration
+    image:
+      repository: "quay.io/fluent/fluent-bit"
+      tag: "${FLUENT_BIT_IMAGE_TAG}"
+      pullPolicy: IfNotPresent
+
+    # Kubernetes cluster logging
+    kubernetes:
+      useKubelet: true
+      kubeletPort: "10250"
+      kubeletHttps: true
+
+    # Output configuration (where logs go)
+    output:
+      # Loki output — set ${LOKI_URL} and ${LOKI_TENANT_ID} in overlay
+      loki:
+        host: "${LOKI_URL}"
+        tenantId: "${LOKI_TENANT_ID}"
+        # kubernetesLabelsAdded: true
+
+    # Resources
+    resources:
+      limits:
+        cpu: "${FLUENT_BIT_CPU_LIMIT}"
+        memory: "${FLUENT_BIT_MEMORY_LIMIT}"
+      requests:
+        cpu: "${FLUENT_BIT_CPU_REQUEST}"
+        memory: "${FLUENT_BIT_MEMORY_REQUEST}"

@@ -1,4 +1,0 @@
-# Base directory for the AD (ldap) connector — referenced by the overlay provider `providers/ad`.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources: [connector.yaml]

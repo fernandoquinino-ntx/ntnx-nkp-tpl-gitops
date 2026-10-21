@@ -1,0 +1,34 @@
+# Dex Connector — type `ldap` (Active Directory).
+# Generic: environment-specific values use ${VAR} and are pinned per cluster by the overlay.
+# Every option is explained in the app README.md.
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: ad-connector
+  namespace: kommander
+spec:
+  enabled: true
+  type: ldap
+  displayName: "${DEX_DISPLAY_NAME}"
+  ldap:
+    host: "${DEX_LDAP_HOST}"
+    insecureNoSSL: false
+    insecureSkipVerify: "${DEX_LDAP_INSECURE_SKIP_VERIFY}"
+    # rootCASecretRef:
+    #   name: "${DEX_LDAP_ROOT_CA_SECRET}"
+    bindDN: "${DEX_LDAP_BIND_DN}"
+    bindSecretRef:
+      name: ldap-bind
+    userSearch:
+      baseDN: "${DEX_LDAP_USER_BASE_DN}"
+      filter: (objectClass=person)
+      username: sAMAccountName
+      idAttr: distinguishedName
+      emailAttr: userPrincipalName
+    groupSearch:
+      baseDN: "${DEX_LDAP_GROUP_BASE_DN}"
+      filter: (objectClass=group)
+      nameAttr: cn
+      userMatchers:
+        - userAttr: DN
+          groupAttr: member

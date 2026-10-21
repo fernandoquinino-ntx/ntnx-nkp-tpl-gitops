@@ -1,9 +1,84 @@
 # Aggregator for the platform layer of this cluster.
 # This file ONLY links to each app's self-contained overlay folder
-# (patches/<category>/<app>/), which carries its own base ref, values/generators and patches.
+# (patches/<model>/<app>/), which carries its own base ref, values/generators and patches.
 # Add an app by adding one entry under `components:`.
+#
+# VERSION MANAGEMENT: kustomize `replacements` inject versions from the centralized
+# ConfigMap (base/versions/app-versions.configmap.yaml) into AppDeployment spec.appRef.name.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 components:
-  - patches/identity-access/dex
+  - patches/appdeployments/fluent-bit
+  - patches/helm-releases/vault-operator
+  - patches/custom-crds/identity-access/dex
+
+# Version management — injects versions from base/versions/app-versions.configmap.yaml
+# into AppDeployment spec.appRef.name fields.
+# Each replacement maps a ConfigMap data key to a specific resource field.
+replacements:
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.fluent-bit
+    targets:
+      - select:
+          kind: AppDeployment
+          name: fluent-bit
+        fieldPaths:
+          - spec.appRef.name
+
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.kube-prometheus-stack
+    targets:
+      - select:
+          kind: AppDeployment
+          name: kube-prometheus-stack
+        fieldPaths:
+          - spec.appRef.name
+
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.grafana-loki-v3
+    targets:
+      - select:
+          kind: AppDeployment
+          name: grafana-loki-v3
+        fieldPaths:
+          - spec.appRef.name
+
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.rook-ceph-cluster
+    targets:
+      - select:
+          kind: AppDeployment
+          name: rook-ceph-cluster
+        fieldPaths:
+          - spec.appRef.name
+
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.velero
+    targets:
+      - select:
+          kind: AppDeployment
+          name: velero
+        fieldPaths:
+          - spec.appRef.name
+
+  - source:
+      kind: ConfigMap
+      name: app-versions
+      fieldPath: data.external-dns
+    targets:
+      - select:
+          kind: AppDeployment
+          name: external-dns
+        fieldPaths:
+          - spec.appRef.name

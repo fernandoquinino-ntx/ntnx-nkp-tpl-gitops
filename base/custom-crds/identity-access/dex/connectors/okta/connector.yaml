@@ -1,0 +1,22 @@
+# Dex Connector — Okta via OIDC.
+# NKP/Dex has NO native `okta` type — Okta is a standard OpenID Connect provider (type: oidc).
+# Generic: values are ${VAR}, pinned per cluster in the overlay.
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: okta
+  namespace: kommander
+spec:
+  enabled: true
+  type: oidc
+  displayName: "${DEX_DISPLAY_NAME}"
+  oidc:
+    issuer: "${OKTA_ISSUER}"
+    redirectURI: "${OKTA_REDIRECT_URI}"
+    clientSecretRef:
+      name: "${OKTA_CLIENT_SECRET_NAME}"
+    scopes: [openid, profile, email, groups]
+    insecureEnableGroups: true
+    insecureSkipEmailVerified: true
+    userIDKey: sub
+    userNameKey: email

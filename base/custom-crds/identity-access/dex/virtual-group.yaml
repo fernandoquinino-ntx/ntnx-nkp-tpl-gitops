@@ -1,0 +1,12 @@
+# Dex VirtualGroup — maps an IdP group to an NKP role binding subject.
+# The group name (oidc:NKP-Admins) is set ONCE here; change it to your IdP group.
+apiVersion: kommander.mesosphere.io/v1beta1
+kind: VirtualGroup
+metadata:
+  name: admins
+  namespace: kommander
+spec:
+  subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: Group
+      name: "oidc:${<APP>_ADMIN_GROUP}"    # IdP group name from overlay

@@ -1,0 +1,24 @@
+# RFC 6902 JSON patch — pin AD/LDAP values onto Connector/ad-connector.
+- op: replace
+  path: /spec/displayName
+  value: "${DEX_DISPLAY_NAME}"
+
+- op: replace
+  path: /spec/ldap/host
+  value: "${DEX_LDAP_HOST}"
+
+- op: replace
+  path: /spec/ldap/insecureSkipVerify
+  value: "${DEX_LDAP_INSECURE_SKIP_VERIFY}"
+
+- op: replace
+  path: /spec/ldap/bindDN
+  value: "${DEX_LDAP_BIND_DN}"
+
+- op: replace
+  path: /spec/ldap/userSearch/baseDN
+  value: "${DEX_LDAP_USER_BASE_DN}"
+
+- op: replace
+  path: /spec/ldap/groupSearch/baseDN
+  value: "${DEX_LDAP_GROUP_BASE_DN}"

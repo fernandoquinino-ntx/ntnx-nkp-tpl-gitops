@@ -1,0 +1,12 @@
+# RFC 6902 JSON patch — pin cluster-specific values onto the fluent-bit AppDeployment.
+- op: replace
+  path: /spec/appRef/name
+  value: "${FLUENT_BIT_APP_REF}"
+
+- op: replace
+  path: /spec/clusterConfigOverrides/0/clusterSelector/matchExpressions/0/values/0
+  value: "${MGMT_CLUSTER_NAME}"
+
+- op: replace
+  path: /spec/clusterConfigOverrides/1/clusterSelector/matchExpressions/0/values/0
+  value: "${WORKLOAD_CLUSTER_NAME}"

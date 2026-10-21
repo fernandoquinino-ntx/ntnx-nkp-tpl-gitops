@@ -1,0 +1,149 @@
+name: Validate Manifests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Overlay
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cluster: [reference]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kustomize
+        uses: sigstore/kustomize-installer@v1.0.3
+        with:
+          kustomize-version: '5.4.0'
+
+      - name: Validate overlay build
+        run: |
+          echo "==> kustomize build overlay/clusters/${{ matrix.cluster }}/cluster-apps"
+          kustomize build --load-restrictor=LoadRestrictionsNone \
+            overlay/clusters/${{ matrix.cluster }}/cluster-apps > /dev/null
+          echo "    build OK"
+
+      - name: Check for undeclared variables
+        run: |
+          BUILD="$(mktemp)"
+          kustomize build --load-restrictor=LoadRestrictionsNone \
+            overlay/clusters/${{ matrix.cluster }}/cluster-apps > "$BUILD" 2>/dev/null
+
+          VARS_FILE="overlay/clusters/${{ matrix.cluster }}/cluster-vars.yaml"
+          ENV_EXAMPLE="overlay/clusters/${{ matrix.cluster }}/.env.example"
+
+          used="$(grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' "$BUILD" | tr -d '${}' | sort -u || true)"
+          declared="$(
+            { [[ -f "$VARS_FILE" ]] && grep -oE '^\s+[A-Z_][A-Z0-9_]*:' "$VARS_FILE" | tr -d ' :'
+              [[ -f "$ENV_EXAMPLE" ]] && grep -oE '^[A-Z_][A-Z0-9_]*=' "$ENV_EXAMPLE" | tr -d '='
+            } | sort -u
+          )"
+
+          undeclared="$(comm -23 <(printf '%s\n' "$used" | sed '/^$/d') <(printf '%s\n' "$declared" | sed '/^$/d') || true)"
+
+          if [[ -n "$undeclared" ]]; then
+            echo "FAIL: undeclared \${VAR} placeholders:"
+            printf '    %s\n' $undeclared
+            exit 1
+          fi
+
+          echo "OK: all ${#used[@]} placeholder(s) declared."
+          rm -f "$BUILD"
+
+      - name: Verify prune policies
+        run: |
+          FLUX_FILE="overlay/clusters/${{ matrix.cluster }}/flux-system/01-cluster-apps.yaml"
+
+          if [[ ! -f "$FLUX_FILE" ]]; then
+            echo "ERROR: $FLUX_FILE not found"
+            exit 1
+          fi
+
+          PRUNE=$(grep -E '^\s+prune:' "$FLUX_FILE" | head -1 | awk '{print $2}')
+          echo "    prune: $PRUNE"
+
+          HAS_PLATFORM=false
+          [[ -d "base/custom-crds" ]] && HAS_PLATFORM=true
+
+          HAS_APPS=false
+          ([[ -d "base/appdeployments" ]] || [[ -d "base/helm-releases" ]]) && HAS_APPS=true
+
+          if [[ "$HAS_PLATFORM" == "true" ]] && [[ "$PRUNE" == "true" ]]; then
+            echo "FAIL: prune: true with platform resources — platform objects may be deleted"
+            exit 1
+          fi
+
+          echo "OK: prune policy check passed"
+
+      - name: Check for committed secrets
+        run: |
+          SECRETS=$(git ls-files | grep -E '(secret|password|token|key)\.yaml$' | grep -v '\.example' || true)
+          if [[ -n "$SECRETS" ]]; then
+            echo "FAIL: Committed secret files (should be gitignored):"
+            echo "$SECRETS"
+            exit 1
+          fi
+          echo "OK: no committed secrets"
+
+      - name: Check YAML syntax
+        run: |
+          find . -name '*.yaml' -not -path './.git/*' -not -path './.github/*' | while read -r f; do
+            if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
+              echo "FAIL: Invalid YAML: $f"
+              exit 1
+            fi
+          done
+          echo "OK: all YAML files are valid"
+
+      - name: Check directory structure
+        run: |
+          # Verify base/ has at least one model directory
+          MODELS_FOUND=0
+          [[ -d "base/appdeployments" ]] && MODELS_FOUND=$((MODELS_FOUND + 1))
+          [[ -d "base/helm-releases" ]] && MODELS_FOUND=$((MODELS_FOUND + 1))
+          [[ -d "base/custom-crds" ]] && MODELS_FOUND=$((MODELS_FOUND + 1))
+
+          if [[ $MODELS_FOUND -eq 0 ]]; then
+            echo "FAIL: No model directories found in base/"
+            exit 1
+          fi
+          echo "OK: $MODELS_FOUND model directory/directories found in base/"
+
+          # Verify overlay/clusters/reference/ exists
+          if [[ ! -d "overlay/clusters/reference" ]]; then
+            echo "FAIL: overlay/clusters/reference/ not found"
+            exit 1
+          fi
+          echo "OK: reference cluster overlay exists"
+
+          # Verify flux-system/ exists
+          if [[ ! -d "overlay/clusters/reference/flux-system" ]]; then
+            echo "FAIL: overlay/clusters/reference/flux-system/ not found"
+            exit 1
+          fi
+          echo "OK: flux-system/ exists"
+
+      - name: Check PRACTICES.md exists
+        run: |
+          if [[ ! -f "PRACTICES.md" ]]; then
+            echo "FAIL: PRACTICES.md not found"
+            exit 1
+          fi
+          echo "OK: PRACTICES.md exists"
+
+      - name: Check CHANGELOG.md exists
+        run: |
+          if [[ ! -f "CHANGELOG.md" ]]; then
+            echo "FAIL: CHANGELOG.md not found"
+            exit 1
+          fi
+          echo "OK: CHANGELOG.md exists"

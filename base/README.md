@@ -3,20 +3,36 @@
 Immutable, cluster-agnostic templates. **No IPs, DNs, secrets, or cluster-specific values** —
 those use `${VAR}` placeholders and are set in the overlay (or pinned with a JSON patch).
 
+## Structure
+
 ```
-base/cluster-apps/identity-access/dex/
-├── kustomization.yaml                 # resources: connectors/ad/ + VG + secret
-├── connectors/
-│   ├── ad/                            # ✅ DEFAULT (type: ldap = Active Directory)
-│   ├── okta/                          # Okta (type: oidc)
-│   └── README.md
-├── virtual-group.yaml                 # VirtualGroup/admins (maps an AD group → NKP)
-├── clusterrolebinding.yaml            # group → cluster-admin
-├── secrets/
-│   ├── ldap-bind/                     # Secret/ldap-bind (bind password, placeholder)
-│   └── okta-client/                   # Secret/okta-client (client-id/client-secret, placeholder)
-└── README.md                          # full connector reference (every option)
+base/
+├── versions/
+│   └── app-versions.configmap.yaml   # Centralized version registry (kustomize replacements)
+├── appdeployments/                   # Model 1: Kommander AppDeployments
+│   └── <app>/
+│       ├── kustomization.yaml
+│       ├── <app>.appdeployment.yaml
+│       └── configs/<app>-override.yaml
+├── helm-releases/                    # Model 2: Flux HelmReleases
+│   └── <app>/
+│       ├── kustomization.yaml
+│       ├── helmrepository.yaml
+│       └── helmrelease.yaml
+├── custom-crds/                      # Model 3: Custom CRDs (Dex, MetalLB, etc.)
+│   └── <app>/
+│       ├── kustomization.yaml
+│       ├── <resource>.yaml
+│       └── providers/                # Optional: swappable implementations
+└── README.md
 ```
 
-Dex has **no `AppDeployment`** here — Kommander ships and runs Dex; we only ship the CRs.
-Field-by-field reference: `cluster-apps/identity-access/dex/README.md`.
+## Three Deployment Models
+
+| Model | Directory | CRD | Use Case |
+|---|---|---|---|
+| AppDeployment | `appdeployments/` | `apps.kommander.d2iq.io/v1alpha3` | NKP ClusterApps (monitoring, logging, storage, backup) |
+| HelmRelease | `helm-releases/` | `helm.toolkit.fluxcd.io/v2` | Third-party Helm charts (Vault, custom operators) |
+| Custom CRD | `custom-crds/` | Various (Dex, Kommander, etc.) | Platform config (identity, networking, license) |
+
+See [PRACTICES.md](../../PRACTICES.md) for complete standards and model selection guide.

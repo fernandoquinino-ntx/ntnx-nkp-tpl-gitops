@@ -1,0 +1,31 @@
+# fluent-bit AppDeployment — deploys the Fluent Bit log collector.
+# Version is injected via kustomize replacements from base/versions/app-versions.configmap.yaml.
+# Cluster routing is configured via clusterConfigOverrides.
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: fluent-bit
+  namespace: kommander
+spec:
+  appRef:
+    appID: fluent-bit
+    kind: ClusterApp
+    name: "${FLUENT_BIT_APP_REF}"          # Version from centralized versions ConfigMap
+    namespace: kommander
+  configOverrides:
+    name: "fluent-bit-override"            # ConfigMap with Helm values
+  clusterConfigOverrides:                  # Route to specific clusters
+    - clusterSelector:
+        matchExpressions:
+          - key: kommander.d2iq.io/cluster-name
+            operator: In
+            values:
+              - "${MGMT_CLUSTER_NAME}"     # Management cluster
+      configMapName: "fluent-bit-override"
+    - clusterSelector:
+        matchExpressions:
+          - key: kommander.d2iq.io/cluster-name
+            operator: In
+            values:
+              - "${WORKLOAD_CLUSTER_NAME}" # Workload cluster(s)
+      configMapName: "fluent-bit-override"

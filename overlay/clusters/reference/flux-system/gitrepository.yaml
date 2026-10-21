@@ -1,6 +1,6 @@
 # Flux GitRepository — lets Kommander's Flux (source-controller) read this repo.
 # Auth: GitHub App (short-lived installation tokens); the `github-app-auth` Secret is created
-# OUT-OF-BAND (see the lab's setup_github_app_auth). Adjust url/ref to your fork.
+# OUT-OF-BAND. Adjust url/ref to your fork.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:

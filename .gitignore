@@ -24,3 +24,6 @@ overlay/**/*credentials*.yaml
 # Backup output (scripts/identity-backup-restore.sh) — may contain secrets
 backup/
 **/backup/
+
+# OpenCodeRAG per-project config (contains the local API key)
+opencode-rag.json

@@ -2,7 +2,9 @@
 
 **Kustomize base-overlay template for NKP/Kommander application repositories.**
 
-A reference implementation for organizing Kubernetes manifests with Kustomize, Flux GitOps, and provider-switching Components — modeled after the [`ntnx-nkp-dex`](https://github.com/fernandoquinino-ntx/ntnx-nkp-dex) repository.
+A production-ready reference for organizing Kubernetes manifests with Kustomize, Flux GitOps,
+and three deployment models — modeled after real NKP production repos (`nkp-infra-tf-src`,
+`ntnx-nkp-dex`).
 
 ---
 
@@ -10,14 +12,29 @@ A reference implementation for organizing Kubernetes manifests with Kustomize, F
 
 | Path | Purpose |
 |---|---|
-| [`ntnx-nkp-tpl-repo.md`](ntnx-nkp-tpl-repo.md) | **Complete reference** — rules, standards, and agentic instructions |
-| `base/cluster-apps/` | Generic templates with `${VAR}` placeholders (immutable) |
-| `overlay/clusters/reference/` | Reference cluster overlay — copy this for a real cluster |
-| `scripts/` | `validate-overlay.sh`, `render.sh` |
+| [`PRACTICES.md`](PRACTICES.md) | **Standalone reference** — rules, standards, model selection guide |
+| [`ntnx-nkp-tpl-repo.md`](ntnx-nkp-tpl-repo.md) | Complete technical reference (800+ lines) with agentic instructions |
+| `base/appdeployments/` | Model 1: Kommander AppDeployments (worked example: `fluent-bit`) |
+| `base/helm-releases/` | Model 2: Flux HelmReleases (worked example: `vault-operator`) |
+| `base/custom-crds/` | Model 3: Custom CRDs (worked example: Dex identity access) |
+| `base/versions/` | Centralized version registry with kustomize replacements |
+| `overlay/clusters/reference/` | Reference cluster overlay — copy for real clusters |
+| `scripts/` | `validate-overlay.sh`, `render.sh`, `verify-prune.sh` |
 | `docs/adr/` | Architecture Decision Records |
-| `docs/guides/` | How-to guides |
-| `docs/specs/` | Technical specifications |
+| `docs/guides/` | Deployment-specific guides |
 | `troubleshooting/` | Symptom → cause → fix runbooks |
+
+---
+
+## Three Deployment Models
+
+| Model | Use Case | Example |
+|---|---|---|
+| **AppDeployment** | NKP ClusterApps (monitoring, logging, storage, backup) | `fluent-bit`, `kube-prometheus-stack`, `velero` |
+| **HelmRelease** | Third-party Helm charts (operators, custom apps) | `vault-operator`, `ingress-nginx` |
+| **Custom CRD** | Platform config (identity, networking, license) | Dex Connectors, MetalLB, VirtualGroups |
+
+See [PRACTICES.md](PRACTICES.md) Section 3 for the decision flow.
 
 ---
 
@@ -30,6 +47,9 @@ scripts/validate-overlay.sh reference
 # Local render of a cluster (${VAR} from the cluster's .env)
 scripts/render.sh reference
 
+# Verify prune policies are correct
+scripts/verify-prune.sh reference
+
 # Apply to a cluster
 kubectl apply -k overlay/clusters/<cluster>/cluster-apps
 ```
@@ -39,28 +59,26 @@ kubectl apply -k overlay/clusters/<cluster>/cluster-apps
 ## Architecture
 
 ```
-base/                          ← generic templates (no cluster-specific values)
-  └── cluster-apps/
-      └── <category>/
-          └── <app>/
-              ├── kustomization.yaml
-              ├── <resource>.yaml      # CRs with ${VAR} placeholders
-              ├── providers/           # swappable provider implementations
-              └── secrets/             # credential Secret templates
+base/                              ← generic templates (no cluster-specific values)
+├── versions/                      ← centralized version registry
+├── appdeployments/<app>/          ← AppDeployment CR + ConfigMap
+├── helm-releases/<app>/           ← HelmRepository + HelmRelease CR
+└── custom-crds/<app>/             ← Custom CRD (+ optional providers/)
 
-overlay/clusters/<cluster>/          ← per-cluster overrides
-  ├── cluster-vars.yaml              # non-secret ${VAR} values (ConfigMap)
-  ├── .env.example                   # .env template for local renders
-  ├── cluster-apps/
-  │   ├── kustomization.yaml         # aggregator: components: [patches/*]
-  │   └── patches/<cat>/<app>/       # Component: base ref + provider switch
-  └── flux-system/
-      ├── gitrepository.yaml         # Flux source CR
-      └── 01-cluster-apps.yaml       # Flux Kustomization + postBuild
+overlay/clusters/<cluster>/        ← per-cluster overrides
+├── cluster-vars.yaml              ← non-secret ${VAR} values (ConfigMap)
+├── .env.example                   ← .env template for local renders
+├── cluster-apps/
+│   ├── kustomization.yaml         ← aggregator + version replacements
+│   └── patches/<model>/<app>/     ← Component: base ref + JSON patches
+└── flux-system/
+    ├── gitrepository.yaml         ← Flux source CR
+    └── 01-cluster-apps.yaml       ← Flux Kustomization + postBuild
 
 scripts/
-  ├── validate-overlay.sh            # build + undeclared ${VAR} check
-  └── render.sh                      # local envsubst rendering
+├── validate-overlay.sh            ← build + undeclared ${VAR} check
+├── render.sh                      ← local envsubst rendering
+└── verify-prune.sh                ← prune policy compliance check
 ```
 
 ---
@@ -72,12 +90,15 @@ scripts/
 - **`base/`** = generic, reusable templates. No IPs, DNs, passwords, or hostnames.
 - **`overlay/`** = per-cluster overrides. Never edit `base/` for a cluster.
 
-### Provider Switching
+### Version Management
 
-Switch identity providers (or any swappable component) by changing one line:
+Versions are centralized in `base/versions/app-versions.configmap.yaml` and injected into
+AppDeployments via kustomize `replacements`. Update a single line to upgrade an app.
 
+### Provider Switching (Custom CRDs)
+
+Switch identity providers by changing one line:
 ```yaml
-# overlay/.../patches/<cat>/<app>/kustomization.yaml
 components:
   - providers/ad    # ← AD/LDAP (default)
   # OR
@@ -96,6 +117,11 @@ components:
 - Secrets use `stringData` (not `secretGenerator`).
 - Real secret files are **gitignored**.
 - `*.example` templates are **committed** — copy and fill before applying.
+
+### Prune Policy
+
+- **App resources:** `prune: true` (safe to recreate)
+- **Platform objects:** `prune: false` (never auto-delete)
 
 ---
 
@@ -124,9 +150,11 @@ kubectl apply -k overlay/clusters/<your-cluster>/cluster-apps
 
 ## Documentation
 
-- **[Complete Reference](ntnx-nkp-tpl-repo.md)** — All rules, standards, and agentic instructions
+- **[PRACTICES.md](PRACTICES.md)** — Standalone rules and standards (read this first)
+- [Complete Reference](ntnx-nkp-tpl-repo.md) — All rules, standards, and agentic instructions
 - [ADR Index](docs/adr/README.md) — Architecture decisions
 - [Overlay Model Spec](docs/specs/overlay-model.md) — How base → cluster works
+- [Version Management Spec](docs/specs/version-management.md) — Centralized versions
 - [Troubleshooting](troubleshooting/README.md) — Common issues and fixes
 
 ---
@@ -138,11 +166,12 @@ Before committing any change:
 ```bash
 scripts/validate-overlay.sh reference   # check undeclared ${VAR}
 scripts/render.sh reference             # local envsubst test
+scripts/verify-prune.sh reference       # prune policy compliance
 ```
 
 ---
 
-## Anti-Patterns to Avoid
+## Anti-Patterns
 
 | Anti-Pattern | Correct Approach |
 |---|---|
@@ -152,8 +181,10 @@ scripts/render.sh reference             # local envsubst test
 | `resources:` for overlay patches | Use `components:` |
 | `v1alpha1` in base Kustomizations | Use `v1beta1` in base |
 | Committing real secrets | Commit `*.example`, gitignore real |
-| Missing `prune: false` | Always set for NKP resources |
+| `prune: true` on platform objects | Use model-appropriate prune |
+| ConfigMap after AppDeployment | List ConfigMap first in resources |
 
 ---
 
-*This is a template repository. Use it as the foundation for your own NKP application repositories. See [ntnx-nkp-tpl-repo.md](ntnx-nkp-tpl-repo.md) for complete standards and agentic instructions.*
+*This is a template repository. Use it as the foundation for your own NKP application repositories.
+Start with [PRACTICES.md](PRACTICES.md) for the rules, then follow the guides in `docs/guides/`.*

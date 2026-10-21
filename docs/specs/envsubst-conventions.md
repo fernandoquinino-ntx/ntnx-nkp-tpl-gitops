@@ -4,15 +4,17 @@ Variables follow these conventions:
 
 ## Naming
 
-- UPPERCASE with underscores: `DEX_LDAP_HOST`, `OKTA_ISSUER`
-- Prefix with app/category: `DEX_`, `OKTA_`, `NETWORK_`
+- UPPERCASE with underscores: `FLUENT_BIT_IMAGE_TAG`, `VAULT_ADDR`, `DEX_LDAP_HOST`
+- Prefix with app/category: `FLUENT_BIT_`, `VAULT_`, `DEX_`, `OKTA_`
 - Descriptive: `<APP>_<FIELD>` or `<CATEGORY>_<FIELD>`
 
 ## Declaration
 
-- Non-secret: `overlay/clusters/<cluster>/cluster-vars.yaml` (ConfigMap)
-- Secret: `overlay/clusters/<cluster>/cluster-secrets` (Secret, referenced in Flux)
-- Both: `overlay/clusters/<cluster>/.env.example` (for local rendering)
+| Type | Where declared | Example |
+|---|---|---|
+| Non-secret | `overlay/clusters/<cluster>/cluster-vars.yaml` (ConfigMap) | `FLUENT_BIT_IMAGE_TAG: "3.1.6"` |
+| Secret | `overlay/clusters/<cluster>/cluster-secrets` (Secret) | `FLUENT_BIT_API_KEY: "${FLUENT_BIT_API_KEY}"` |
+| Both | `overlay/clusters/<cluster>/.env.example` | `FLUENT_BIT_IMAGE_TAG="3.1.6"` |
 
 ## Usage in manifests
 

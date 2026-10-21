@@ -1,9 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-# identity-access category — lists the apps in this category.
-# (In this template repo there is a single app: dex.)
-# The cluster overlay references the app dir directly
-# (`base/cluster-apps/identity-access/dex`), so this file is structural only.
-resources:
-  - dex

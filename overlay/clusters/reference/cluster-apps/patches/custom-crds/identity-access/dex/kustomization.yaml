@@ -1,0 +1,11 @@
+# identity-access/dex — TOP Component. The parent aggregator only links to this folder.
+# It brings in the base app and selects ONE provider via `components:`.
+#
+#   PROVIDER SWITCH:  components: [providers/ad]   <->   [providers/okta]
+#
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../../../../../../base/custom-crds/identity-access/dex
+components:
+  - providers/ad # ← switch to providers/okta for Okta (OIDC)

@@ -1,7 +1,0 @@
-# Base directory for the Okta/OIDC connector (a dir so the overlay provider can reference it without
-# the kustomize load-restrictor flag). Referenced by
-# overlay/.../patches/identity-access/dex/providers/okta/.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - connector.yaml

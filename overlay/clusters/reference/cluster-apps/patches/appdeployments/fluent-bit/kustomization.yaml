@@ -1,0 +1,11 @@
+# fluent-bit AppDeployment — overlay Component.
+# Brings in the base AppDeployment and patches cluster-specific values.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../../../../../../base/appdeployments/fluent-bit
+patches:
+  - path: appdeployment-patch.yaml
+    target: { group: apps.kommander.d2iq.io, version: v1alpha3, kind: AppDeployment, name: fluent-bit }
+  - path: config-patch.yaml
+    target: { version: v1, kind: ConfigMap, name: fluent-bit-override }

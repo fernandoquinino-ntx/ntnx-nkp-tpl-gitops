@@ -1,0 +1,15 @@
+# Dex ClusterRoleBinding — grants cluster-admin to the IdP admin group (oidc:<group>).
+# Cluster-scoped. The group name is the same for all providers; override in the overlay
+# only if a cluster needs a different admin group.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nkp-admins-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "oidc:${<APP>_ADMIN_GROUP}"    # IdP group name from overlay
