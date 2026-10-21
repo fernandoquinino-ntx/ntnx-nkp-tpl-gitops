@@ -1,8 +1,8 @@
-# Plan — ntnx-nkp-tpl-repo v2: Generic Kustomize + Flux Template for NKP Apps
+# Plan — ntnx-nkp-tpl-gitops v2: Generic Kustomize + Flux Template for NKP Apps
 
 ## Problem Statement
 
-The current `ntnx-nkp-tpl-repo` is too Dex-specific. It uses Dex terminology, Dex CRDs, and Dex directory names throughout. What's needed is a **generic, production-ready template** that any Kubernetes engineer or DevOps engineer can follow to configure **any** NKP application — whether it's an AppDeployment, HelmRelease, plain Kustomization, or custom CR — using the same base-overlay pattern.
+The current `ntnx-nkp-tpl-gitops` is too Dex-specific. It uses Dex terminology, Dex CRDs, and Dex directory names throughout. What's needed is a **generic, production-ready template** that any Kubernetes engineer or DevOps engineer can follow to configure **any** NKP application — whether it's an AppDeployment, HelmRelease, plain Kustomization, or custom CR — using the same base-overlay pattern.
 
 ## What We Actually Have (Real NKP Patterns)
 
@@ -34,10 +34,10 @@ All three share the same **organizational pattern**:
 ## Repository Structure
 
 ```
-ntnx-nkp-tpl-repo/
+ntnx-nkp-tpl-gitops/
 ├── README.md                          # Overview, quickstart, architecture
 ├── PRACTICES.md                       # ✅ NEW: Rules, standards, best practices (the "how-to")
-├── ntnx-nkp-tpl-repo.md              # Complete reference (rules + agentic instructions)
+├── ntnx-nkp-tpl-gitops.md              # Complete reference (rules + agentic instructions)
 ├── .gitignore
 │
 ├── base/                              # GENERIC templates (immutable, ${VAR} only)
@@ -158,7 +158,7 @@ ntnx-nkp-tpl-repo/
 
 ### Phase 3: Update Documentation (Day 3)
 9. Rewrite `README.md` — remove Dex references, show all three models
-10. Rewrite `ntnx-nkp-tpl-repo.md` — update agentic instructions for all models
+10. Rewrite `ntnx-nkp-tpl-gitops.md` — update agentic instructions for all models
 11. Create deployment-specific guides in `docs/guides/`
 12. Create new ADRs for version management and prune policy decisions
 13. Update troubleshooting runbooks
@@ -170,7 +170,7 @@ ntnx-nkp-tpl-repo/
 
 ### Phase 5: Push to GitHub (Day 5)
 17. Commit all changes
-18. Push to `fernandoquinino-ntx/ntnx-nkp-tpl-repo`
+18. Push to `fernandoquinino-ntx/ntnx-nkp-tpl-gitops`
 
 ## Key Changes from v1 to v2
 
@@ -191,7 +191,7 @@ ntnx-nkp-tpl-repo/
 - [ ] Version management via centralized ConfigMap + kustomize replacements
 - [ ] Prune policy is model-appropriate (apps = true, platform = false)
 - [ ] Cluster routing documented for AppDeployments
-- [ ] `PRACTICES.md` is a standalone reference that can be followed without reading `ntnx-nkp-tpl-repo.md`
+- [ ] `PRACTICES.md` is a standalone reference that can be followed without reading `ntnx-nkp-tpl-gitops.md`
 - [ ] All three models pass `validate-overlay.sh` and `render.sh`
 - [ ] `verify-prune.sh` catches misconfigured prune policies
 

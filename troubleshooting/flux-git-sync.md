@@ -20,7 +20,7 @@ The Flux `GitRepository` source is not yet available, or authentication is misco
    ```
 2. Check for errors:
    ```bash
-   kubectl describe gitrepository ntnx-nkp-tpl-repo -n kommander-flux
+   kubectl describe gitrepository ntnx-nkp-tpl-gitops -n kommander-flux
    ```
 3. Common issues:
    - `url` in `gitrepository.yaml` points to wrong repo

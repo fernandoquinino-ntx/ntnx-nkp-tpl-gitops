@@ -4,7 +4,7 @@
 > using Kustomize + Flux GitOps. It covers all three deployment models.
 >
 > For the complete technical reference (800+ lines with agentic instructions), see
-> [ntnx-nkp-tpl-repo.md](ntnx-nkp-tpl-repo.md).
+> [ntnx-nkp-tpl-gitops.md](ntnx-nkp-tpl-gitops.md).
 
 ---
 
@@ -28,7 +28,7 @@ Every repo MUST follow this structure:
 ```
 <repo>/
 ├── PRACTICES.md                     # ← You are here
-├── ntnx-nkp-tpl-repo.md             # Complete technical reference
+├── ntnx-nkp-tpl-gitops.md             # Complete technical reference
 ├── CHANGELOG.md                     # Version history
 ├── .gitignore
 │
@@ -677,4 +677,4 @@ git ls-files | grep '\.example$'
 
 ---
 
-*This document is the standalone reference. For complete technical details, see [ntnx-nkp-tpl-repo.md](ntnx-nkp-tpl-repo.md).*
+*This document is the standalone reference. For complete technical details, see [ntnx-nkp-tpl-gitops.md](ntnx-nkp-tpl-gitops.md).*

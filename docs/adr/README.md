@@ -1,4 +1,4 @@
-# ADR Index — ntnx-nkp-tpl-repo
+# ADR Index — ntnx-nkp-tpl-gitops
 
 Decisions + rationale for the template repository. Format: `NNNN-<slug>.md`.
 

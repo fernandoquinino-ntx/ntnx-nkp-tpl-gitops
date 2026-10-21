@@ -4,11 +4,11 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
-  name: ntnx-nkp-tpl-repo
+  name: ntnx-nkp-tpl-gitops
   namespace: kommander-flux
 spec:
   interval: 1m
-  url: https://github.com/<org>/ntnx-nkp-tpl-repo.git
+  url: https://github.com/<org>/ntnx-nkp-tpl-gitops.git
   ref:
     branch: main
   provider: github

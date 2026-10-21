@@ -1,4 +1,4 @@
-# ntnx-nkp-tpl-repo
+# ntnx-nkp-tpl-gitops
 
 **Kustomize base-overlay template for NKP/Kommander application repositories.**
 
@@ -13,7 +13,7 @@ and three deployment models — modeled after real NKP production repos (`nkp-in
 | Path | Purpose |
 |---|---|
 | [`PRACTICES.md`](PRACTICES.md) | **Standalone reference** — rules, standards, model selection guide |
-| [`ntnx-nkp-tpl-repo.md`](ntnx-nkp-tpl-repo.md) | Complete technical reference (800+ lines) with agentic instructions |
+| [`ntnx-nkp-tpl-gitops.md`](ntnx-nkp-tpl-gitops.md) | Complete technical reference (800+ lines) with agentic instructions |
 | `base/appdeployments/` | Model 1: Kommander AppDeployments (worked example: `fluent-bit`) |
 | `base/helm-releases/` | Model 2: Flux HelmReleases (worked example: `vault-operator`) |
 | `base/custom-crds/` | Model 3: Custom CRDs (worked example: Dex identity access) |
@@ -151,7 +151,7 @@ kubectl apply -k overlay/clusters/<your-cluster>/cluster-apps
 ## Documentation
 
 - **[PRACTICES.md](PRACTICES.md)** — Standalone rules and standards (read this first)
-- [Complete Reference](ntnx-nkp-tpl-repo.md) — All rules, standards, and agentic instructions
+- [Complete Reference](ntnx-nkp-tpl-gitops.md) — All rules, standards, and agentic instructions
 - [ADR Index](docs/adr/README.md) — Architecture decisions
 - [Overlay Model Spec](docs/specs/overlay-model.md) — How base → cluster works
 - [Version Management Spec](docs/specs/version-management.md) — Centralized versions

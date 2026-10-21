@@ -1,4 +1,4 @@
-# Guide — Getting Started with ntnx-nkp-tpl-repo
+# Guide — Getting Started with ntnx-nkp-tpl-gitops
 
 This guide walks you through creating a new NKP application repository from the template.
 
@@ -6,17 +6,17 @@ This guide walks you through creating a new NKP application repository from the 
 
 ```bash
 # Option A: Fork on GitHub
-gh repo fork fernandoquinino-ntx/ntnx-nkp-tpl-repo my-app-repo
+gh repo fork fernandoquinino-ntx/ntnx-nkp-tpl-gitops my-app-repo
 
 # Option B: Copy locally
-cp -r /workspaces/ntnx-nkp-tpl-repo ~/my-app-repo
+cp -r /workspaces/ntnx-nkp-tpl-gitops ~/my-app-repo
 cd ~/my-app-repo
 git init
 ```
 
 ## Step 2: Understand the structure
 
-Read [ntnx-nkp-tpl-repo.md](../../ntnx-nkp-tpl-repo.md) for the complete reference.
+Read [ntnx-nkp-tpl-gitops.md](../../ntnx-nkp-tpl-gitops.md) for the complete reference.
 
 Key directories:
 - `base/cluster-apps/` — generic templates

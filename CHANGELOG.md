@@ -37,5 +37,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADRs, troubleshooting runbooks, documentation
 - `.gitignore` for secrets and generated files
 
-[Unreleased]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-repo/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-repo/releases/tag/v1.0.0
+[Unreleased]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/releases/tag/v1.0.0

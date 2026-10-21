@@ -1,11 +1,11 @@
 ---
-title: ntnx-nkp-tpl-repo — Template Repository Reference
+title: ntnx-nkp-tpl-gitops — Template Repository Reference
 tags: [template, kustomize, kubernetes, flux, gitops, standards, agentic-instructions]
 sourceRefs: []
 lastReviewed: 2025-01-23
 ---
 
-# ntnx-nkp-tpl-repo — Template Repository Reference
+# ntnx-nkp-tpl-gitops — Template Repository Reference
 
 > **Purpose:** This document defines the rules, standards, and agentic instructions for creating and maintaining a Kustomize-based NKP application repository. Use this as the single source of truth when bootstrapping a new repo or reviewing an existing one.
 
@@ -588,7 +588,7 @@ These are instructions for AI agents working with this repository pattern.
 ### 8.1 When Creating a New Repo
 
 ```
-You are creating a new NKP application repository following the ntnx-nkp-tpl-repo pattern.
+You are creating a new NKP application repository following the ntnx-nkp-tpl-gitops pattern.
 
 Step 1: Create the directory structure per Section 1.
 Step 2: Write base/cluster-apps/<category>/<app>/kustomization.yaml listing shared resources.
@@ -612,7 +612,7 @@ Step 17: Test render with: scripts/render.sh reference
 ### 8.2 When Adding a New App to an Existing Repo
 
 ```
-You are adding a new application to an existing ntnx-nkp-tpl-repo repository.
+You are adding a new application to an existing ntnx-nkp-tpl-gitops repository.
 
 Step 1: Under base/cluster-apps/, create a new category or use an existing one.
 Step 2: Create <app>/ with kustomization.yaml, resource files, providers/, and secrets/.
@@ -631,7 +631,7 @@ Step 12: Test render: scripts/render.sh reference
 ### 8.3 When Switching Providers
 
 ```
-You are switching the default provider for an app in an ntnx-nkp-tpl-repo repository.
+You are switching the default provider for an app in an ntnx-nkp-tpl-gitops repository.
 
 Step 1: Identify the overlay Component at overlay/clusters/<cluster>/cluster-apps/patches/<category>/<app>/kustomization.yaml.
 Step 2: Change the components line from `providers/<old>` to `providers/<new>`.
@@ -662,7 +662,7 @@ Step 9: Apply: kubectl apply -k overlay/clusters/<cluster-name>/cluster-apps
 ### 8.5 When Reviewing a Repo
 
 ```
-You are reviewing a repository for compliance with the ntnx-nkp-tpl-repo pattern.
+You are reviewing a repository for compliance with the ntnx-nkp-tpl-gitops pattern.
 
 Checklist:
 [ ] base/ contains only generic templates (no IPs, DNs, passwords, hostnames)
@@ -743,7 +743,7 @@ data:
 
 ## 9. Validation Checklist
 
-Before committing any change to an ntnx-nkp-tpl-repo:
+Before committing any change to an ntnx-nkp-tpl-gitops:
 
 ```bash
 # 1. Validate the reference overlay
@@ -789,7 +789,7 @@ git ls-files | grep '\.example$'
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ntnx-nkp-tpl-repo Quick Reference                              │
+│  ntnx-nkp-tpl-gitops Quick Reference                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  base/         → generic templates, ${VAR} placeholders         │
@@ -828,4 +828,4 @@ git ls-files | grep '\.example$'
 
 ---
 
-*This document is the single source of truth for the ntnx-nkp-tpl-repo pattern. When in doubt, follow the `ntnx-nkp-dex` repository as the canonical example.*
+*This document is the single source of truth for the ntnx-nkp-tpl-gitops pattern. When in doubt, follow the `ntnx-nkp-dex` repository as the canonical example.*
