@@ -1,4 +1,0 @@
-# RFC 6902 JSON patch — pin admin group onto VirtualGroup/admins.
-- op: replace
-  path: /spec/subjects/0/name
-  value: "oidc:${DEX_ADMIN_GROUP}"
