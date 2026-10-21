@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Management cluster manifests (base/management-cluster/)
+- Managed cluster manifests (base/managed-clusters/)
+- Multi-cluster overlay structure (mgmt/, managed-<name>/, bootstrap/)
+- Deployment guides: management cluster, managed cluster, multi-cluster GitOps
+- ADRs: managed cluster pattern, multi-cluster routing, Flux bootstrap
+
+### Changed
+- Repo renamed: ntnx-nkp-tpl-repo → ntnx-nkp-tpl-gitops
+- PRACTICES.md rewritten with 5 resource categories + multi-cluster standards
+- Scripts updated for multi-cluster validation
+- CI workflow updated for multi-cluster checks
+
+## [2.0.0] — 2025-01-23
+
+### Added
 - Three deployment models: AppDeployment, HelmRelease, Custom CRD
 - Centralized version management via ConfigMap + kustomize replacements
 - `verify-prune.sh` script for prune policy compliance
@@ -37,5 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADRs, troubleshooting runbooks, documentation
 - `.gitignore` for secrets and generated files
 
-[Unreleased]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/fernandoquinino-ntx/ntnx-nkp-tpl-gitops/releases/tag/v1.0.0

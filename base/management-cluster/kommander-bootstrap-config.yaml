@@ -1,0 +1,26 @@
+# Kommander bootstrap configuration — generated during management cluster bootstrap.
+# This ConfigMap is consumed by the `nkp install kommander` command.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kommander-bootstrap-configuration
+  namespace: "${MGMT_CLUSTER_NAMESPACE}"
+data:
+  kommander-install.yaml: |
+    clusterName: "${MGMT_CLUSTER_NAME}"
+    namespace: "${MGMT_CLUSTER_NAMESPACE}"
+    clusterDomain: "${CLUSTER_DOMAIN}"
+    kubernetesVersion: "${KUBERNETES_VERSION}"
+    nkpVersion: "${NKP_VERSION}"
+    prism:
+      endpoint: "${PRISM_ENDPOINT}"
+      prismElement: "${PRISM_ELEMENT}"
+    clusterNetwork:
+      podsCidr: "${PODS_CIDR}"
+      servicesCidr: "${SERVICES_CIDR}"
+    controlPlaneEndpointIp: "${CONTROL_PLANE_VIP}"
+    serviceLoadBalancer:
+      rangeStart: "${LB_RANGE_START}"
+      rangeEnd: "${LB_RANGE_END}"
+    image:
+      name: "${NKP_IMAGE_NAME}"

@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# managed-01 workload cluster — NKPCluster CR (mode: managed).
+# Apply to the MANAGEMENT cluster's workspace namespace.
+# The CAPI controller provisions VMs on Nutanix AHV.
+resources:
+  - nkpcluster.yaml
+  - secrets.yaml

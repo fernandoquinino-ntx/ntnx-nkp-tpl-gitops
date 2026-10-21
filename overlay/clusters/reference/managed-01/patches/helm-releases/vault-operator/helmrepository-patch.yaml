@@ -1,0 +1,4 @@
+# RFC 6902 JSON patch — pin cluster-specific values onto the vault-operator HelmRepository.
+- op: replace
+  path: /spec/url
+  value: "${VAULT_HELM_REPO_URL}"

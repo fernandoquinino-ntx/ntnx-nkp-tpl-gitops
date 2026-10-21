@@ -1,10 +1,8 @@
-# PRACTICES — NKP Application Manifest Standards
+# PRACTICES — NKP GitOps Standards
 
-> **Read this first.** This document is the standalone reference for configuring NKP applications
-> using Kustomize + Flux GitOps. It covers all three deployment models.
+> **Read this first.** This document is the standalone reference for configuring NKP with Kustomize + Flux GitOps. It covers all deployment models, cluster types, and multi-cluster routing.
 >
-> For the complete technical reference (800+ lines with agentic instructions), see
-> [ntnx-nkp-tpl-gitops.md](ntnx-nkp-tpl-gitops.md).
+> For the complete technical reference (800+ lines with agentic instructions), see [ntnx-nkp-tpl-gitops.md](ntnx-nkp-tpl-gitops.md).
 
 ---
 
@@ -17,7 +15,7 @@
 | **Components, not resources** | Overlay patches use `kind: Component` with `components:` in the aggregator. | Swappability, clean hierarchy |
 | **JSON patches, not declarations** | Override fields with RFC 6902 JSON patches (`op: replace`). Don't re-declare whole resources. | Minimal diffs, easy review |
 | **Secrets out of git** | Real secrets are gitignored. `*.example` templates are committed. | Security, auditability |
-| **Prune by risk** | App resources: `prune: true`. Platform objects (License, Connector): `prune: false`. | Prevent accidental deletion |
+| **Prune by risk** | App resources: `prune: true`. Platform objects (License, Connector, NKPCluster): `prune: false`. | Prevent accidental deletion |
 
 ---
 
@@ -28,32 +26,41 @@ Every repo MUST follow this structure:
 ```
 <repo>/
 ├── PRACTICES.md                     # ← You are here
-├── ntnx-nkp-tpl-gitops.md             # Complete technical reference
+├── ntnx-nkp-tpl-gitops.md           # Complete technical reference
 ├── CHANGELOG.md                     # Version history
 ├── .gitignore
 │
 ├── base/                            # GENERIC templates (immutable)
 │   ├── versions/
 │   │   └── app-versions.configmap.yaml   # Centralized version registry
-│   ├── appdeployments/              # Model 1: Kommander AppDeployments
+│   ├── management-cluster/          # Self-managed cluster (NKPCluster mode: management)
+│   │   ├── kustomization.yaml
+│   │   ├── nkpcluster.yaml
+│   │   ├── secrets.yaml
+│   │   ├── kommander-bootstrap-config.yaml
+│   │   ├── kommander-installer-config.yaml
+│   │   └── dockerhub-auth.yaml
+│   ├── managed-clusters/            # Workload clusters (NKPCluster mode: managed)
+│   │   └── <cluster>/
+│   │       ├── kustomization.yaml
+│   │       ├── nkpcluster.yaml
+│   │       └── secrets.yaml
+│   ├── appdeployments/              # Day-2 apps: Kommander ClusterApps
 │   │   └── <app>/
 │   │       ├── kustomization.yaml
 │   │       ├── <app>.appdeployment.yaml
 │   │       └── configs/
 │   │           └── <app>-override.yaml
-│   ├── helm-releases/               # Model 2: Flux HelmReleases
+│   ├── helm-releases/               # Day-2 apps: Third-party Helm charts
 │   │   └── <app>/
 │   │       ├── kustomization.yaml
 │   │       ├── helmrepository.yaml
 │   │       └── helmrelease.yaml
-│   ├── custom-crds/                 # Model 3: Custom CRDs (Dex, MetalLB, etc.)
+│   ├── custom-crds/                 # Day-2 apps: Custom CRDs
 │   │   └── <app>/
 │   │       ├── kustomization.yaml
 │   │       ├── <resource>.yaml
-│   │       └── providers/           # Optional: swappable implementations
-│   │           └── <provider>/
-│   │               ├── kustomization.yaml
-│   │               └── <resource>.yaml
+│   │       └── providers/
 │   └── README.md
 │
 ├── overlay/                         # PER-CLUSTER overrides
@@ -61,15 +68,16 @@ Every repo MUST follow this structure:
 │       └── reference/               # 🔑 REFERENCE cluster — copy for real clusters
 │           ├── cluster-vars.yaml    # ConfigMap: non-secret ${VAR} values
 │           ├── .env.example         # .env template for local renders
-│           ├── cluster-apps/
-│           │   ├── kustomization.yaml   # aggregator
-│           │   └── patches/
-│           │       ├── appdeployments/<app>/
-│           │       ├── helm-releases/<app>/
-│           │       └── custom-crds/<app>/
-│           └── flux-system/
-│               ├── gitrepository.yaml
-│               └── 01-cluster-apps.yaml
+│           ├── bootstrap/           # Flux bootstrap CRs (applied to mgmt cluster)
+│           │   ├── gitrepository.yaml
+│           │   ├── root-kustomization.yaml       # Syncs mgmt/ → mgmt cluster
+│           │   └── <managed-name>-kustomization.yaml  # Syncs managed-<name>/ → managed
+│           ├── mgmt/                # Management cluster Day-2 apps
+│           │   ├── kustomization.yaml
+│           │   └── patches/<model>/<app>/
+│           └── managed-<name>/      # Workload cluster Day-2 apps
+│               ├── kustomization.yaml
+│               └── patches/<model>/<app>/
 │
 ├── scripts/
 │   ├── validate-overlay.sh
@@ -86,50 +94,56 @@ Every repo MUST follow this structure:
 
 ### Rules
 
-1. **One directory per app** under `base/<model>/<app>/`.
+1. **One directory per app** under `base/<category>/<app>/`.
 2. **Each directory has its own `kustomization.yaml`**.
 3. **Providers go under `providers/`** only when you need swappable implementations.
 4. **`overlay/clusters/reference/` is required** — no real cluster overlay exists until copied.
-5. **`flux-system/` is required** in every cluster overlay.
+5. **`bootstrap/` is required** in multi-cluster overlays.
 
 ---
 
-## 3. Choosing a Deployment Model
+## 3. Resource Categories — Choosing the Right One
 
-| Use this model when... | Example apps |
-|---|---|
-| **AppDeployment** (`apps.kommander.d2iq.io/v1alpha3`) | Deploying an NKP ClusterApp from the Kommander catalog (monitoring, logging, storage, backup) |
-| **HelmRelease** (`helm.toolkit.fluxcd.io/v2`) | Deploying a third-party Helm chart not in the NKP catalog (Vault, custom charts, operators) |
-| **Custom CRD** | Configuring platform objects that are CRs but not AppDeployments (Dex Connectors, VirtualGroups, MetalLB, License) |
+| Category | Use When... | Example |
+|---|---|---|
+| **Management Cluster** | Deploying a self-managed NKP cluster (kind → pivot → Kommander) | First cluster in the environment |
+| **Managed Clusters** | Deploying a workload cluster managed by the management cluster | Additional clusters for workloads |
+| **AppDeployment** | Deploying an NKP ClusterApp from the Kommander catalog | `fluent-bit`, `kube-prometheus-stack`, `velero` |
+| **HelmRelease** | Deploying a third-party Helm chart via Flux | `vault-operator`, `ingress-nginx` |
+| **Custom CRD** | Configuring platform objects that are CRs but not AppDeployments | Dex Connectors, VirtualGroups, MetalLB |
 
 ### Decision Flow
 
 ```
-Is the app an NKP ClusterApp (from the Kommander catalog)?
-  → YES → Use AppDeployment
-  → NO  → Is it a Helm chart (from a HelmRepository)?
-    → YES → Use HelmRelease
-    → NO  → Is it a custom CR (Connector, VirtualGroup, etc.)?
-      → YES → Use Custom CRD
+Is this the first (management) cluster?
+  → YES → Use management-cluster/ (NKPCluster mode: management)
+  → NO  → Is this a workload cluster?
+    → YES → Use managed-clusters/<name>/ (NKPCluster mode: managed)
+    → NO  → Is this a Day-2 app?
+      → YES → Is it an NKP ClusterApp?
+        → YES → Use appdeployments/<app>/
+        → NO  → Is it a Helm chart?
+          → YES → Use helm-releases/<app>/
+          → NO  → Use custom-crds/<app>/
 ```
 
 ---
 
-## 4. Base Layer Standards (All Models)
+## 4. Base Layer Standards (All Categories)
 
 ### 4.1 Variable Naming
 
 - **Format:** `UPPERCASE_WITH_UNDERSCORES`
-- **Prefix:** `<APP>_<FIELD>` or `<CATEGORY>_<FIELD>`
-- **Examples:** `FLUENT_BIT_IMAGE_TAG`, `VAULT_ADDR`, `DEX_LDAP_HOST`
+- **Prefix:** `<CATEGORY>_<FIELD>` (e.g., `FLUENT_BIT_IMAGE_TAG`, `PRISM_ENDPOINT`)
+- **Cluster-specific:** `MGMT_CLUSTER_NAME`, `MANAGED_CLUSTER_NAME`, `WORKLOAD_CLUSTER_NAME`
 
 ### 4.2 Variable Declaration
 
 | Type | Where declared | Example |
 |---|---|---|
-| Non-secret | `overlay/clusters/<cluster>/cluster-vars.yaml` (ConfigMap) | `FLUENT_BIT_IMAGE_TAG: "0.57.2"` |
-| Secret | `overlay/clusters/<cluster>/cluster-secrets` (Secret) | `FLUENT_BIT_API_KEY: "${FLUENT_BIT_API_KEY}"` |
-| Both | `overlay/clusters/<cluster>/.env.example` | `FLUENT_BIT_IMAGE_TAG="0.57.2"` |
+| Non-secret | `overlay/clusters/<cluster>/cluster-vars.yaml` (ConfigMap) | `FLUENT_BIT_IMAGE_TAG: "3.1.6"` |
+| Secret | `cluster-secrets` Secret (referenced in Flux postBuild) | `PRISM_PASSWORD` |
+| Both | `overlay/clusters/<cluster>/.env.example` | `FLUENT_BIT_IMAGE_TAG="3.1.6"` |
 
 ### 4.3 Kustomization Files
 
@@ -138,11 +152,9 @@ Every `kustomization.yaml` in `base/` MUST:
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 # Comment explaining what this directory contains
 resources:
   - <resource>.yaml
-
 # NO secretGenerator — use plain Secret + stringData
 ```
 
@@ -153,7 +165,7 @@ Every CR in `base/` MUST:
 - Use `${VAR}` for cluster-specific values
 - Include inline comments for each field
 - Have a stable `metadata.name` (never `${VAR}`)
-- Be placed in `base/<model>/<app>/` or a subdirectory
+- Be placed in the appropriate `base/<category>/<app>/` directory
 
 ### 4.5 Secret Templates
 
@@ -170,9 +182,81 @@ stringData:
 
 ---
 
-## 5. Model 1: AppDeployment Standards
+## 5. Management Cluster Standards
 
-### 5.1 Directory Structure
+### 5.1 What It Renders (mode: management)
+
+| Resource | CRD | Notes |
+|---|---|---|
+| `NKPCluster` | `clusters.nkp.nutanix.com/v1alpha1` | WITH `kommander.d2iq.io/host: "true"` label |
+| 3x `{cluster}-pc-credentials*` | `Secret` | Prism Central auth |
+| `global-nutanix-credentials` | `Secret` (capx-system) | Global CAPI credentials |
+| `prism-central-metadata` | `Secret` | PC UUID |
+| `kommander-bootstrap-configuration` | `ConfigMap` | Bootstrap config |
+
+### 5.2 Key Variables
+
+| Variable | Purpose |
+|---|---|
+| `MGMT_CLUSTER_NAME` | Name of the management cluster |
+| `MGMT_CLUSTER_NAMESPACE` | Namespace (usually `kommander`) |
+| `PRISM_ENDPOINT` | Prism Central FQDN/IP |
+| `PRISM_USERNAME` / `PRISM_PASSWORD` | PC credentials |
+| `PRISM_UUID` | Prism Central UUID (immutable) |
+| `CONTROL_PLANE_VIP` | kube-vip VIP for API server |
+| `LB_RANGE_START` / `LB_RANGE_END` | MetalLB IP range |
+| `NKP_IMAGE_NAME` | NKP node image name in PC |
+| `KUBERNETES_VERSION` | e.g., `v1.35.2` |
+| `NKP_VERSION` | e.g., `v2.18.0` |
+| `DOCKERHUB_USERNAME` / `DOCKERHUB_PASSWORD` | OCI auth |
+
+### 5.3 Deployment Sequence
+
+1. `nkp create bootstrap` — creates local kind cluster
+2. Apply `base/management-cluster/` manifests to kind cluster
+3. Wait for CAPI machines Ready
+4. `nkp get kubeconfig` — extract workload kubeconfig
+5. `nkp create capi-components` — deploy CAPI to workload
+6. `nkp move capi-resources` — pivot from kind → workload
+7. `nkp delete bootstrap` — remove kind cluster
+8. `nkp install kommander` — install Kommander platform
+
+---
+
+## 6. Managed Cluster Standards
+
+### 6.1 What It Renders (mode: managed)
+
+| Resource | CRD | Notes |
+|---|---|---|
+| `NKPCluster` | `clusters.nkp.nutanix.com/v1alpha1` | WITHOUT `kommander.d2iq.io/host: "true"` label |
+| 3x `{cluster}-pc-credentials*` | `Secret` | Prism Central auth |
+
+**NOT included** (management-only):
+- `kommander-bootstrap-configuration` ConfigMap
+- `global-nutanix-credentials` Secret
+- `prism-central-metadata` Secret
+
+### 6.2 Key Variables
+
+Same as management cluster plus:
+| Variable | Purpose |
+|---|---|
+| `MANAGED_CLUSTER_NAME` | Name of the workload cluster |
+| `MANAGED_CLUSTER_NAMESPACE` | Workspace namespace (e.g., `kommander-default-workspace`) |
+
+### 6.3 Deployment Sequence
+
+1. Apply `base/managed-clusters/<name>/` manifests to the **management cluster** (NOT the managed cluster)
+2. Wait for `status.phase = Provisioned`
+3. Extract kubeconfig from `{cluster}-kubeconfig` Secret
+4. Bootstrap Flux on the managed cluster (optional, for Day-2 apps)
+
+---
+
+## 7. AppDeployment Standards
+
+### 7.1 Directory Structure
 
 ```
 base/appdeployments/<app>/
@@ -182,84 +266,38 @@ base/appdeployments/<app>/
     └── <app>-override.yaml      # Helm values ConfigMap
 ```
 
-### 5.2 AppDeployment Template
+### 7.2 AppDeployment Template
 
 ```yaml
-# base/appdeployments/<app>/<app>.appdeployment.yaml
 apiVersion: apps.kommander.d2iq.io/v1alpha3
 kind: AppDeployment
 metadata:
   name: <app>
-  namespace: kommander
+  namespace: kommander             # mgmt cluster: kommander
+  # OR
+  # namespace: kommander-default-workspace  # managed cluster: workspace ns
 spec:
   appRef:
     appID: <catalog-app-id>
     kind: ClusterApp
-    name: "${<APP>_APP_REF}"          # Version from centralized versions ConfigMap
+    name: "${<APP>_APP_REF}"
     namespace: kommander
   configOverrides:
-    name: "<app>-override"            # ConfigMap with Helm values
-  clusterConfigOverrides:             # Route to specific clusters
+    name: "<app>-override"
+  clusterConfigOverrides:
     - clusterSelector:
         matchExpressions:
           - key: kommander.d2iq.io/cluster-name
             operator: In
-            values: ["mgmt-a"]
+            values: ["${MGMT_CLUSTER_NAME}"]
       configMapName: "<app>-override"
 ```
 
-### 5.3 Override ConfigMap
+### 7.3 Version Management
 
-```yaml
-# base/appdeployments/<app>/configs/<app>-override.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: <app>-override
-  namespace: kommander
-data:
-  values.yaml: |
-    # Helm values with ${VAR} placeholders
-    image:
-      tag: "${<APP>_IMAGE_TAG}"
-    someSetting: "${<APP>_SOME_SETTING}"
-```
+Versions are centralized in `base/versions/app-versions.configmap.yaml` and injected via kustomize `replacements` in the overlay.
 
-### 5.4 Version Management
-
-Versions are centralized in `base/versions/app-versions.configmap.yaml`:
-
-```yaml
-# base/versions/app-versions.configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-versions
-  namespace: kommander
-data:
-  fluent-bit: "fluent-bit-0.57.2"
-  kube-prometheus-stack: "kube-prometheus-stack-82.13.6"
-  rook-ceph-cluster: "rook-ceph-cluster-1.19.6"
-```
-
-The overlay's `kustomization.yaml` uses `replacements` to inject versions:
-
-```yaml
-# overlay/.../kustomization.yaml
-replacements:
-  - source:
-      kind: ConfigMap
-      name: app-versions
-      fieldPath: data.fluent-bit
-    targets:
-      - select:
-          kind: AppDeployment
-          name: fluent-bit
-        fieldPaths:
-          - spec.appRef.name
-```
-
-### 5.5 Cluster Routing
+### 7.4 Cluster Routing
 
 For apps deployed to **multiple clusters**:
 
@@ -279,24 +317,11 @@ clusterConfigOverrides:
     configMapName: "fluent-bit-override"
 ```
 
-### 5.6 Overlay Patch
-
-```yaml
-# overlay/.../patches/appdeployments/<app>/connector.yaml
-- op: replace
-  path: /spec/appRef/name
-  value: "${<APP>_APP_REF}"           # Flux substitutes from cluster-vars
-
-- op: replace
-  path: /spec/clusterConfigOverrides/0/clusterSelector/matchExpressions/0/values/0
-  value: "${<CLUSTER_NAME}"           # Per-cluster cluster name
-```
-
 ---
 
-## 6. Model 2: HelmRelease Standards
+## 8. HelmRelease Standards
 
-### 6.1 Directory Structure
+### 8.1 Directory Structure
 
 ```
 base/helm-releases/<app>/
@@ -305,10 +330,10 @@ base/helm-releases/<app>/
 └── helmrelease.yaml
 ```
 
-### 6.2 HelmRepository Template
+### 8.2 Template
 
 ```yaml
-# base/helm-releases/<app>/helmrepository.yaml
+# helmrepository.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
@@ -317,13 +342,9 @@ metadata:
 spec:
   type: oci
   interval: 5m
-  url: "${<APP>_HELM_REPO_URL}"       # e.g., oci://ghcr.io/bank-vaults/helm-charts
-```
+  url: "${<APP>_HELM_REPO_URL}"
 
-### 6.3 HelmRelease Template
-
-```yaml
-# base/helm-releases/<app>/helmrelease.yaml
+# helmrelease.yaml
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -339,7 +360,9 @@ spec:
         kind: HelmRepository
         name: <app>
         namespace: <namespace>
+      interval: 5m
   install:
+    createNamespace: true
     remediation:
       retries: 3
   upgrade:
@@ -347,176 +370,136 @@ spec:
       retries: 3
   values:
     someSetting: "${<APP>_SOME_SETTING}"
-    image:
-      tag: "${<APP>_IMAGE_TAG}"
-```
-
-### 6.4 Overlay Patch
-
-```yaml
-# overlay/.../patches/helm-releases/<app>/values-patch.yaml
-- op: replace
-  path: /spec/chart/spec/version
-  value: "${<APP>_CHART_VERSION}"
-
-- op: replace
-  path: /spec/values/someSetting
-  value: "${<APP>_SOME_SETTING}"
-```
-
-### 6.5 Prune Policy
-
-**App resources:** `prune: true` (Flux can safely delete and recreate HelmReleases)
-
-```yaml
-# flux-system/01-cluster-apps.yaml
-spec:
-  prune: true                          # Safe for HelmRelease-managed resources
 ```
 
 ---
 
-## 7. Model 3: Custom CRD Standards
+## 9. Custom CRD Standards
 
-### 7.1 Directory Structure
+### 9.1 Directory Structure
 
 ```
 base/custom-crds/<app>/
 ├── kustomization.yaml
 ├── <resource>.yaml
-└── providers/                          # Optional
+└── providers/
     └── <provider>/
         ├── kustomization.yaml
         └── <resource>.yaml
 ```
 
-### 7.2 Resource Template
+### 9.2 Provider Switching
 
 ```yaml
-# base/custom-crds/<app>/<resource>.yaml
-apiVersion: <api-group>/<version>
-kind: <Kind>
+# overlay/.../kustomization.yaml
+components:
+  - providers/ad    # ← default
+  # OR
+  - providers/okta  # ← switch
+```
+
+---
+
+## 10. Multi-Cluster GitOps Standards
+
+### 10.1 Directory Layout
+
+```
+overlay/clusters/<cluster>/
+├── bootstrap/                     # Flux bootstrap CRs (applied to mgmt cluster)
+│   ├── gitrepository.yaml
+│   ├── root-kustomization.yaml    # Syncs mgmt/ → mgmt cluster
+│   └── <managed-name>-kustomization.yaml  # Syncs managed-<name>/ → managed
+├── mgmt/                          # Management cluster Day-2 apps
+│   ├── kustomization.yaml
+│   └── patches/<model>/<app>/
+└── managed-<name>/               # Workload cluster Day-2 apps
+    ├── kustomization.yaml
+    └── patches/<model>/<app>/
+```
+
+### 10.2 How Routing Works
+
+| Directory | Namespace | clusterSelector | Flux Kustomization |
+|---|---|---|---|
+| `mgmt/` | `kommander` | `${MGMT_CLUSTER_NAME}` | `root-kustomization.yaml` |
+| `managed-<name>/` | `kommander-default-workspace` | `${WORKLOAD_CLUSTER_NAME}` | `<name>-kustomization.yaml` |
+
+### 10.3 Flux Kustomization for Managed Cluster
+
+```yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
 metadata:
-  name: <stable-name>
+  name: <managed-name>-platform
   namespace: kommander
 spec:
-  field: "${<APP>_FIELD}"
-```
-
-### 7.3 Provider Switching
-
-When you need swappable implementations:
-
-```yaml
-# overlay/.../patches/custom-crds/<app>/kustomization.yaml
-apiVersion: kustomize.config.k8s.io/v1alpha1
-kind: Component
-resources:
-  - ../../../../../../../base/custom-crds/<app>
-components:
-  - providers/<default-provider>    # ← switch to providers/<other>
-```
-
-Switch providers by changing one line:
-```yaml
-components:
-  - providers/ad       # ← default
-  # OR
-  - providers/okta     # ← switch
-```
-
-### 7.4 Prune Policy
-
-**Platform objects:** `prune: false` (never cascade-delete platform config)
-
-```yaml
-# flux-system/01-cluster-apps.yaml
-spec:
+  interval: 5m
   prune: false                         # Platform objects — never auto-delete
+  sourceRef:
+    kind: GitRepository
+    name: ntnx-nkp-tpl-gitops
+    namespace: kommander-flux
+  path: ./overlay/clusters/<cluster>/managed-<name>
+  dependsOn:
+    - name: mgmt-platform              # waits for mgmt platform to be ready
 ```
 
 ---
 
-## 8. Overlay Standards (All Models)
+## 11. Bootstrap Standards
 
-### 8.1 Aggregator
+### 11.1 What Bootstrap Does
 
-```yaml
-# overlay/clusters/<cluster>/cluster-apps/kustomization.yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-components:
-  - patches/appdeployments/<app>
-  - patches/helm-releases/<app>
-  - patches/custom-crds/<app>
+The `bootstrap/` directory contains Flux CRs that are applied **manually** to the management cluster (not via Flux). They tell Flux where to read manifests from and which directories to sync.
+
+### 11.2 Bootstrap CRs
+
+| CR | Purpose | Applied To |
+|---|---|---|
+| `gitrepository.yaml` | Tells Flux where to read this repo | `kommander-flux` namespace |
+| `root-kustomization.yaml` | Syncs `mgmt/` to management cluster | `kommander` namespace |
+| `<name>-kustomization.yaml` | Syncs `managed-<name>/` to managed cluster | `kommander` namespace |
+
+### 11.3 Applying Bootstrap
+
+```bash
+# 1. Get the management cluster kubeconfig
+export KUBECONFIG=<mgmt-kubeconfig>
+
+# 2. Create the kommander-flux namespace
+kubectl create namespace kommander-flux
+
+# 3. Create GitHub App auth secret (out-of-band)
+kubectl create secret generic github-app-auth -n kommander-flux --from-literal=...
+
+# 4. Apply bootstrap CRs
+kubectl apply -f overlay/clusters/<cluster>/bootstrap/gitrepository.yaml
+kubectl apply -f overlay/clusters/<cluster>/bootstrap/root-kustomization.yaml
+kubectl apply -f overlay/clusters/<cluster>/bootstrap/<managed-name>-kustomization.yaml
 ```
-
-### 8.2 Component
-
-```yaml
-# overlay/.../patches/<model>/<app>/kustomization.yaml
-apiVersion: kustomize.config.k8s.io/v1alpha1
-kind: Component
-resources:
-  - ../../../../../../../base/<model>/<app>
-patches:
-  - path: patch.yaml
-    target: { group: <api-group>, version: <version>, kind: <Kind>, name: <name> }
-```
-
-### 8.3 JSON Patches
-
-```yaml
-# overlay/.../patches/<model>/<app>/patch.yaml
-- op: replace
-  path: /spec/<field>
-  value: "${<APP>_FIELD}"       # Flux substitutes from cluster-vars
-
-- op: add
-  path: /spec/<newField>
-  value: "new-value"
-```
-
-**Rules:**
-- Target by `group/version/kind/name` — never by index
-- Use `${VAR}` for Flux-substituted values
-- Commit concrete values ONLY for `reference` cluster
-- Keep patches minimal — only override what differs
-
-### 8.4 Secret Patches
-
-```yaml
-# overlay/.../secret-patch.yaml.example
-- op: replace
-  path: /stringData/<key>
-  value: "${<APP>_SECRET_VAR}"
-```
-
-- Commit as `*.example`
-- Gitignore the real file
-- Reference `${VAR}` so Flux substitutes from `cluster-secrets`
 
 ---
 
-## 9. Flux Best Practices
+## 12. Flux Best Practices
 
-### 9.1 Prune Policy
+### 12.1 Prune Policy
 
 | Resource Type | Prune | Reason |
 |---|---|---|
 | AppDeployment apps | `true` | Safe to recreate |
 | HelmRelease apps | `true` | Safe to recreate |
-| License CR | `false` | Platform object — deleting breaks Kommander |
-| Connector CR | `false` | Platform object — deleting breaks identity |
-| VirtualGroup / RBAC | `false` | Platform object — deleting breaks access |
-| Custom platform CRs | `false` | Platform object |
+| License CR | `false` | Platform object |
+| Connector CR | `false` | Platform object |
+| VirtualGroup / RBAC | `false` | Platform object |
+| NKPCluster | `false` | Platform object |
+| Custom platform CRs | `false` | Platform resource |
 | App-specific Secrets | `true` | App resource |
 | Platform Secrets | `false` | Platform resource |
 
-### 9.2 postBuild Substitution
+### 12.2 postBuild Substitution
 
 ```yaml
-# flux-system/01-cluster-apps.yaml
 spec:
   postBuild:
     substituteFrom:
@@ -527,71 +510,47 @@ spec:
         optional: true
 ```
 
-### 9.3 Resource Ordering
+### 12.3 Resource Ordering
 
-ConfigMaps MUST be listed before AppDeployments that reference them:
+ConfigMaps MUST be listed before AppDeployments that reference them.
 
-```yaml
-# base/appdeployments/<app>/kustomization.yaml
-resources:
-  - configs/<app>-override.yaml    # ← ConfigMap first
-  - <app>.appdeployment.yaml       # ← AppDeployment second
-```
-
-Kommander retries until the ConfigMap exists, but explicit ordering is clearer.
-
-### 9.4 GitRepository
+### 12.4 Flux Kustomization Settings
 
 ```yaml
-# flux-system/gitrepository.yaml
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: GitRepository
-metadata:
-  name: <repo-name>
-  namespace: kommander-flux
 spec:
-  interval: 1m
-  url: https://github.com/<org>/<repo>.git
-  ref:
-    branch: main
-  provider: github
-  secretRef:
-    name: github-app-auth
+  prune: true|false
+  validation: client
+  wait: true
+  timeout: 5m|10m
+  dependsOn:
+    - name: <dependency>
 ```
 
 ---
 
-## 10. Secret Management
+## 13. Secret Management
 
-### 10.1 Rules
+### 13.1 Rules
 
 - **NEVER** commit real secrets
 - **ALWAYS** commit `*.example` templates
-- Use `stringData` (not `secretGenerator`) so `${VAR}` stays visible to Flux
-- Gitignore: `secret-patch.yaml`, `secret.yaml`, `.env`, `*.secret.yaml`
+- Use `stringData` (not `secretGenerator`)
+- Gitignore: `secret-patch.yaml`, `secret.yaml`, `.env`
 - Commit: `secret-patch.yaml.example`, `secret.yaml.example`, `.env.example`
 
-### 10.2 Delivery Paths
-
-| Path | How it works |
-|---|---|
-| **Flux postBuild** | `${VAR}` in `secret-patch.yaml` → substituted from `cluster-secrets` Secret |
-| **ESO (External Secrets)** | Secret managed from Vault/KV store (manual `kubectl apply` reverted) |
-| **Manual apply** | `kubectl apply` with local `.env` (testing only) |
-
-### 10.3 Secret Key Conventions
+### 13.2 Secret Key Conventions
 
 | Secret Type | Keys |
 |---|---|
 | LDAP bind | `password` |
 | OIDC client | `client-id`, `client-secret` |
-| GitHub client | `client-id`, `client-secret` |
+| PC credentials | `username`, `password` |
 | CA certificate | `tls.crt` |
-| Generic API key | `api-key` or `token` |
+| Docker Hub | `username`, `password` |
 
 ---
 
-## 11. Validation Checklist
+## 14. Validation Checklist
 
 Before committing any change:
 
@@ -617,7 +576,7 @@ git ls-files | grep '\.example$'
 
 ---
 
-## 12. Anti-Patterns
+## 15. Anti-Patterns
 
 | Anti-Pattern | Why It's Wrong | Correct Approach |
 |---|---|---|
@@ -625,31 +584,39 @@ git ls-files | grep '\.example$'
 | `secretGenerator` | Base64-encodes values, hiding `${VAR}` | Use `stringData` |
 | Editing `base/` for a cluster | Causes merge conflicts | Create overlay patches |
 | `resources:` for overlay patches | Mixes patches with base | Use `components:` |
-| `v1alpha1` in base Kustomizations | Wrong API version | Use `v1beta1` in base, `v1alpha1` only for Components |
+| `v1alpha1` in base Kustomizations | Wrong API version | Use `v1beta1` in base |
 | Committing real secrets | Security risk | Commit `*.example`, gitignore real |
-| `prune: false` on app resources | Wastes resources, but also `prune: true` on platform objects deletes them | Model-appropriate prune |
-| Hardcoding `${VAR}` without declaring | `validate-overlay.sh` catches this | Declare every `${VAR}` in `cluster-vars.yaml` or `.env` |
+| `prune: true` on platform objects | Deletes platform objects | Use model-appropriate prune |
+| Hardcoding `${VAR}` without declaring | `validate-overlay.sh` catches this | Declare every `${VAR}` |
 | Copying entire resources instead of patching | Duplicates base | Use JSON patches |
-| ConfigMap after AppDeployment | Kommander retries until CM exists | List ConfigMap first in resources |
+| ConfigMap after AppDeployment | Kommander retries until CM exists | List ConfigMap first |
 | Using `op: replace` on `metadata.name` | Names are stable in base | Only patch `spec` fields |
+| Applying NKPCluster to managed cluster | Wrong target — apply to mgmt cluster | Apply to management cluster |
+| Bootstrap via Flux | Bootstrap CRs must be applied manually | Apply bootstrap CRs manually |
 
 ---
 
-## 13. Quick Reference Card
+## 16. Quick Reference Card
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  NKP Manifest Standards — Quick Reference                       │
+│  NKP GitOps Standards — Quick Reference                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  base/<model>/<app>/                → generic templates         │
-│  overlay/clusters/<cluster>/        → per-cluster overrides     │
-│  flux-system/                       → Flux GitOps CRs           │
+│  base/management-cluster/          → self-managed cluster        │
+│  base/managed-clusters/<name>/     → workload clusters           │
+│  base/appdeployments/<app>/        → NKP ClusterApps             │
+│  base/helm-releases/<app>/         → third-party Helm charts     │
+│  base/custom-crds/<app>/           → platform config CRDs        │
 │                                                                 │
-│  Models:                                                        │
-│    appdeployments/  → Kommander ClusterApps (AppDeployment CR)  │
-│    helm-releases/   → Third-party Helm charts (HelmRelease CR)  │
-│    custom-crds/     → Platform config (Connector, VG, etc.)     │
+│  overlay/clusters/<cluster>/       → per-cluster overrides       │
+│  ├── bootstrap/                   → Flux bootstrap CRs           │
+│  ├── mgmt/                        → mgmt cluster Day-2 apps      │
+│  └── managed-<name>/              → workload cluster Day-2 apps  │
+│                                                                 │
+│  Routing:                                                       │
+│    mgmt/ → namespace: kommander, clusterSelector: mgmt-name     │
+│    managed-<name>/ → namespace: kommander-default-workspace     │
 │                                                                 │
 │  Provider Switch:                                               │
 │    components: [providers/ad]  →  components: [providers/okta]  │
@@ -670,7 +637,8 @@ git ls-files | grep '\.example$'
 │    scripts/validate-overlay.sh <cluster>   # undeclared ${VAR}  │
 │    scripts/render.sh <cluster>             # local envsubst     │
 │    scripts/verify-prune.sh <cluster>       # prune compliance   │
-│    kubectl apply -k overlay/clusters/<c>/cluster-apps  # deploy │
+│    kubectl apply -k overlay/clusters/<c>/mgmt  # deploy mgmt    │
+│    kubectl apply -k overlay/clusters/<c>/managed-<n> # deploy   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```

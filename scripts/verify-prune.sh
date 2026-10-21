@@ -3,8 +3,8 @@
 #
 # Checks:
 #   1. Flux Kustomizations for app resources have prune: true
-#   2. Flux Kustomizations for platform-only resources have prune: false
-#   3. No platform CRDs are listed in a prune: true Kustomization
+#   2. Flux Kustomizations for platform objects have prune: false
+#   3. Bootstrap CRs exist for multi-cluster overlays
 #
 # Usage: scripts/verify-prune.sh [cluster]   (default: reference)
 set -euo pipefail
@@ -13,61 +13,82 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 CLUSTER="${1:-reference}"
-FLUX_FILE="overlay/clusters/${CLUSTER}/flux-system/01-cluster-apps.yaml"
 
-if [[ ! -f "$FLUX_FILE" ]]; then
-  echo "ERROR: $FLUX_FILE not found" >&2
+echo "==> Checking prune policies for cluster: $CLUSTER"
+
+ERRORS=0
+
+# Check bootstrap CRs
+if [[ -d "overlay/clusters/${CLUSTER}/bootstrap" ]]; then
+  echo "==> Checking bootstrap CRs"
+  for f in gitrepository.yaml root-kustomization.yaml; do
+    if [[ ! -f "overlay/clusters/${CLUSTER}/bootstrap/$f" ]]; then
+      echo "FAIL: bootstrap/$f not found"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+  if ! ls overlay/clusters/${CLUSTER}/bootstrap/*-kustomization.yaml 1>/dev/null 2>&1; then
+    echo "FAIL: No managed-cluster Kustomizations in bootstrap/"
+    ERRORS=$((ERRORS + 1))
+  fi
+  echo "    bootstrap OK"
+fi
+
+# Check each Flux Kustomization
+check_prune() {
+  local file="$1"
+  local label="$2"
+  if [[ ! -f "$file" ]]; then
+    return
+  fi
+
+  local prune=$(grep -E '^\s+prune:' "$file" | head -1 | awk '{print $2}' || true)
+  if [[ -z "$prune" ]]; then
+    echo "WARN: No prune policy in $file ($label)"
+    return
+  fi
+
+  echo "    $label: prune=$prune"
+
+  # Platform objects should have prune: false
+  if [[ "$prune" == "true" ]]; then
+    # Check if this is a platform-only Kustomization
+    local has_platform=false
+    # root-kustomization.yaml and managed-*-kustomization.yaml are platform-level
+    if [[ "$file" == *"bootstrap/"* ]]; then
+      has_platform=true
+    fi
+
+    if [[ "$has_platform" == "true" ]]; then
+      echo "    WARN: prune: true on platform Kustomization ($file) — platform objects may be deleted"
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
+}
+
+# Check mgmt/ Kustomization
+if [[ -f "overlay/clusters/${CLUSTER}/mgmt/kustomization.yaml" ]]; then
+  check_prune "overlay/clusters/${CLUSTER}/mgmt/kustomization.yaml" "mgmt/"
+fi
+
+# Check managed-<name>/ Kustomizations
+for dir in overlay/clusters/${CLUSTER}/managed-*/; do
+  [[ -d "$dir" ]] || continue
+  local_name=$(basename "$dir")
+  if [[ -f "$dir/kustomization.yaml" ]]; then
+    check_prune "$dir/kustomization.yaml" "$local_name/"
+  fi
+done
+
+# Check bootstrap Kustomizations
+for f in overlay/clusters/${CLUSTER}/bootstrap/*-kustomization.yaml; do
+  [[ -f "$f" ]] || continue
+  check_prune "$f" "$(basename $f)"
+done
+
+if [[ $ERRORS -gt 0 ]]; then
+  echo "FAIL: $ERRORS error(s) found"
   exit 1
 fi
 
-echo "==> Checking prune policy in $FLUX_FILE"
-
-# Extract prune value
-PRUNE_VALUE=$(grep -E '^\s+prune:' "$FLUX_FILE" | head -1 | awk '{print $2}' || true)
-
-if [[ -z "$PRUNE_VALUE" ]]; then
-  echo "ERROR: No prune policy found in $FLUX_FILE" >&2
-  exit 1
-fi
-
-echo "    prune: $PRUNE_VALUE"
-
-# Determine if the repo has platform-only resources
-HAS_PLATFORM=false
-if [[ -d "base/custom-crds" ]]; then
-  HAS_PLATFORM=true
-fi
-
-# Determine if the repo has app resources
-HAS_APPS=false
-if [[ -d "base/appdeployments" ]] || [[ -d "base/helm-releases" ]]; then
-  HAS_APPS=true
-fi
-
-if [[ "$HAS_PLATFORM" == "true" ]] && [[ "$PRUNE_VALUE" == "true" ]]; then
-  echo "WARNING: prune: true with platform resources (custom-crds) — platform objects may be deleted"
-  echo "    If this repo contains platform CRs (License, Connector, VirtualGroup), use prune: false"
-  echo "    or split into separate Flux Kustomizations."
-  exit 1
-fi
-
-if [[ "$HAS_APPS" == "true" ]] && [[ "$PRUNE_VALUE" == "false" ]]; then
-  echo "INFO: prune: false with app resources — app resources won't be cleaned up by Flux"
-  echo "    Consider using prune: true for app resources (AppDeployments, HelmReleases)."
-  echo "    This is not an error — some teams prefer explicit management."
-fi
-
-if [[ "$HAS_APPS" == "true" ]] && [[ "$HAS_PLATFORM" == "false" ]] && [[ "$PRUNE_VALUE" == "true" ]]; then
-  echo "    OK: prune: true for app-only repo"
-fi
-
-if [[ "$HAS_APPS" == "false" ]] && [[ "$HAS_PLATFORM" == "true" ]] && [[ "$PRUNE_VALUE" == "false" ]]; then
-  echo "    OK: prune: false for platform-only repo"
-fi
-
-if [[ "$HAS_APPS" == "true" ]] && [[ "$HAS_PLATFORM" == "true" ]] && [[ "$PRUNE_VALUE" == "true" ]]; then
-  echo "    WARNING: Mixed repo with prune: true — platform objects must be in base/ and"
-  echo "    never removed. Consider splitting into separate Flux Kustomizations."
-fi
-
-echo "OK: prune policy check complete."
+echo "OK: prune policy check passed."

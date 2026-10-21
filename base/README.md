@@ -9,17 +9,29 @@ those use `${VAR}` placeholders and are set in the overlay (or pinned with a JSO
 base/
 ├── versions/
 │   └── app-versions.configmap.yaml   # Centralized version registry (kustomize replacements)
-├── appdeployments/                   # Model 1: Kommander AppDeployments
+├── management-cluster/               # Self-managed cluster (NKPCluster mode: management)
+│   ├── kustomization.yaml
+│   ├── nkpcluster.yaml
+│   ├── secrets.yaml
+│   ├── kommander-bootstrap-config.yaml
+│   ├── kommander-installer-config.yaml
+│   └── dockerhub-auth.yaml
+├── managed-clusters/                 # Workload clusters (NKPCluster mode: managed)
+│   └── <cluster>/
+│       ├── kustomization.yaml
+│       ├── nkpcluster.yaml
+│       └── secrets.yaml
+├── appdeployments/                   # Day-2 apps: Kommander ClusterApps
 │   └── <app>/
 │       ├── kustomization.yaml
 │       ├── <app>.appdeployment.yaml
 │       └── configs/<app>-override.yaml
-├── helm-releases/                    # Model 2: Flux HelmReleases
+├── helm-releases/                    # Day-2 apps: Third-party Helm charts
 │   └── <app>/
 │       ├── kustomization.yaml
 │       ├── helmrepository.yaml
 │       └── helmrelease.yaml
-├── custom-crds/                      # Model 3: Custom CRDs (Dex, MetalLB, etc.)
+├── custom-crds/                      # Day-2 apps: Custom CRDs (Dex, MetalLB, etc.)
 │   └── <app>/
 │       ├── kustomization.yaml
 │       ├── <resource>.yaml
@@ -27,12 +39,14 @@ base/
 └── README.md
 ```
 
-## Three Deployment Models
+## Five Resource Categories
 
-| Model | Directory | CRD | Use Case |
+| Category | Directory | Purpose | Deployed To |
 |---|---|---|---|
-| AppDeployment | `appdeployments/` | `apps.kommander.d2iq.io/v1alpha3` | NKP ClusterApps (monitoring, logging, storage, backup) |
-| HelmRelease | `helm-releases/` | `helm.toolkit.fluxcd.io/v2` | Third-party Helm charts (Vault, custom operators) |
-| Custom CRD | `custom-crds/` | Various (Dex, Kommander, etc.) | Platform config (identity, networking, license) |
+| Management Cluster | `management-cluster/` | NKPCluster + Kommander bootstrap | kind → self-managed cluster |
+| Managed Clusters | `managed-clusters/<cluster>/` | NKPCluster for workload clusters | Management cluster's workspace ns |
+| AppDeployments | `appdeployments/<app>/` | NKP ClusterApps (monitoring, logging, etc.) | mgmt or managed cluster |
+| HelmReleases | `helm-releases/<app>/` | Third-party Helm charts | mgmt or managed cluster |
+| Custom CRDs | `custom-crds/<app>/` | Platform config (Dex, MetalLB, etc.) | mgmt or managed cluster |
 
-See [PRACTICES.md](../../PRACTICES.md) for complete standards and model selection guide.
+See [PRACTICES.md](../../PRACTICES.md) for complete standards.

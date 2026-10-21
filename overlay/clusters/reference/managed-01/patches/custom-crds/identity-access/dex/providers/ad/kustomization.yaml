@@ -1,0 +1,15 @@
+# Provider Component — Active Directory (ldap). DEFAULT.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../../../../../../../../base/custom-crds/identity-access/dex/connectors/ad
+  - ../../../../../../../../../base/custom-crds/identity-access/dex/secrets/ldap-bind
+patches:
+  - path: connector.yaml
+    target: { group: dex.mesosphere.io, version: v1alpha1, kind: Connector, name: ad-connector }
+  - path: secret-patch.yaml
+    target: { version: v1, kind: Secret, name: ldap-bind }
+  - path: vg-patch.yaml
+    target: { group: kommander.mesosphere.io, version: v1beta1, kind: VirtualGroup, name: admins }
+  - path: crb-patch.yaml
+    target: { group: rbac.authorization.k8s.io, version: v1, kind: ClusterRoleBinding, name: nkp-admins-cluster-admin }

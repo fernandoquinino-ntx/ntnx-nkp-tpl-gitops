@@ -1,0 +1,44 @@
+# Management cluster NKPCluster — self-managed mode (mode: management).
+# Applied to the kind bootstrap cluster. The CAPI controller provisions VMs on Nutanix AHV.
+# The kommander.d2iq.io/host: "true" label identifies this as the management cluster.
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: "${MGMT_CLUSTER_NAME}"
+  namespace: "${MGMT_CLUSTER_NAMESPACE}"
+  labels:
+    kommander.d2iq.io/host: "true"
+spec:
+  clusterName: "${MGMT_CLUSTER_NAME}"
+  clusterDomain: "${CLUSTER_DOMAIN}"
+  kubernetesVersion: "${KUBERNETES_VERSION}"
+  nkpVersion: "${NKP_VERSION}"
+  clusterClassName: "${CLUSTER_CLASS_NAME}"
+  sshPublicKey: "${SSH_PUBLIC_KEY}"
+  prism:
+    endpoint: "${PRISM_ENDPOINT}"
+    username: "${PRISM_USERNAME}"
+    passwordSecretRef:
+      name: "${MGMT_CLUSTER_NAME}-pc-credentials"
+      namespace: "${MGMT_CLUSTER_NAMESPACE}"
+    prismElement: "${PRISM_ELEMENT}"
+    subnet: "${PRISM_SUBNET}"
+  clusterNetwork:
+    podsCidr: "${PODS_CIDR}"
+    servicesCidr: "${SERVICES_CIDR}"
+  controlPlaneEndpointIp: "${CONTROL_PLANE_VIP}"
+  serviceLoadBalancer:
+    rangeStart: "${LB_RANGE_START}"
+    rangeEnd: "${LB_RANGE_END}"
+  controlPlane:
+    replicas: ${CONTROL_PLANE_REPLICAS}
+    vcpu: ${CONTROL_PLANE_VCPU}
+    memoryMiB: ${CONTROL_PLANE_MEMORY}
+    diskGiB: ${CONTROL_PLANE_DISK}
+  workers:
+    replicas: ${WORKER_REPLICAS}
+    vcpu: ${WORKER_VCPU}
+    memoryMiB: ${WORKER_MEMORY}
+    diskGiB: ${WORKER_DISK}
+  image:
+    name: "${NKP_IMAGE_NAME}"

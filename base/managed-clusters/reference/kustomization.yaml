@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# reference workload cluster template — copy for each managed cluster.
+# See base/managed-clusters/README.md for details.
+resources:
+  - nkpcluster.yaml
+  - secrets.yaml

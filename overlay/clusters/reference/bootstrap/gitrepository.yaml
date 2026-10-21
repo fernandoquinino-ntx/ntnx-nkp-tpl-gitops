@@ -1,0 +1,16 @@
+# Flux GitRepository — lets Kommander's Flux (source-controller) read this repo.
+# Auth: GitHub App (short-lived installation tokens); the `github-app-auth` Secret is created
+# OUT-OF-BAND. Adjust url/ref to your fork.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: ntnx-nkp-tpl-gitops
+  namespace: kommander-flux
+spec:
+  interval: 1m
+  url: https://github.com/<org>/ntnx-nkp-tpl-gitops.git
+  ref:
+    branch: main
+  provider: github
+  secretRef:
+    name: github-app-auth

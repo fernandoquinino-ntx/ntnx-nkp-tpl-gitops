@@ -1,0 +1,23 @@
+# RFC 6902 JSON patch — pin cluster-specific values onto the fluent-bit ConfigMap (mgmt).
+- op: replace
+  path: /data/values.yaml
+  value: |
+    image:
+      repository: "quay.io/fluent/fluent-bit"
+      tag: "${FLUENT_BIT_IMAGE_TAG}"
+      pullPolicy: IfNotPresent
+    kubernetes:
+      useKubelet: true
+      kubeletPort: "10250"
+      kubeletHttps: true
+    output:
+      loki:
+        host: "${LOKI_URL}"
+        tenantId: "${LOKI_TENANT_ID}"
+    resources:
+      limits:
+        cpu: "${FLUENT_BIT_CPU_LIMIT}"
+        memory: "${FLUENT_BIT_MEMORY_LIMIT}"
+      requests:
+        cpu: "${FLUENT_BIT_CPU_REQUEST}"
+        memory: "${FLUENT_BIT_MEMORY_REQUEST}"

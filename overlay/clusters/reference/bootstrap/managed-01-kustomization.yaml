@@ -1,0 +1,29 @@
+# Flux Kustomization — syncs managed-01 Day-2 apps to the managed-01 workload cluster.
+# The workspace membership (kommander-default-workspace) routes apps to the managed cluster.
+# prune: false — NEVER cascade-delete Kommander platform objects on managed clusters.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: managed-01-platform
+  namespace: kommander
+spec:
+  interval: 5m
+  prune: false                         # Platform objects — never auto-delete
+  validation: client
+  wait: true
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: ntnx-nkp-tpl-gitops
+    namespace: kommander-flux
+  path: ./overlay/clusters/reference/managed-01
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+      - kind: Secret
+        name: cluster-secrets
+        optional: true
+  dependsOn:
+    - name: ntnx-nkp-tpl-gitops
+    - name: mgmt-platform              # waits for mgmt platform to be ready

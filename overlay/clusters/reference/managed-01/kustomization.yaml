@@ -1,0 +1,12 @@
+# Aggregator for the managed-01 workload cluster Day-2 apps.
+# Components link to each app's self-contained overlay folder.
+# Apps in this directory deploy to the managed-01 cluster via:
+#   - namespace: kommander-default-workspace
+#   - clusterConfigOverrides[].clusterSelector targeting "managed-01"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - patches/appdeployments/fluent-bit
+  - patches/helm-releases/vault-operator
+  - patches/custom-crds/identity-access/dex

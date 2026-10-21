@@ -1,10 +1,10 @@
 # ntnx-nkp-tpl-gitops
 
-**Kustomize base-overlay template for NKP/Kommander application repositories.**
+**Kustomize + Flux GitOps template for NKP/Kommander.**
 
 A production-ready reference for organizing Kubernetes manifests with Kustomize, Flux GitOps,
-and three deployment models — modeled after real NKP production repos (`nkp-infra-tf-src`,
-`ntnx-nkp-dex`).
+and five resource categories — modeled after real NKP production repos (`nkp-infra-tf-src`,
+`ntnx-nkp-dex`, `ntnx-iac-live-nkp-platform`).
 
 ---
 
@@ -14,9 +14,11 @@ and three deployment models — modeled after real NKP production repos (`nkp-in
 |---|---|
 | [`PRACTICES.md`](PRACTICES.md) | **Standalone reference** — rules, standards, model selection guide |
 | [`ntnx-nkp-tpl-gitops.md`](ntnx-nkp-tpl-gitops.md) | Complete technical reference (800+ lines) with agentic instructions |
-| `base/appdeployments/` | Model 1: Kommander AppDeployments (worked example: `fluent-bit`) |
-| `base/helm-releases/` | Model 2: Flux HelmReleases (worked example: `vault-operator`) |
-| `base/custom-crds/` | Model 3: Custom CRDs (worked example: Dex identity access) |
+| `base/management-cluster/` | Self-managed cluster (NKPCluster mode: management) |
+| `base/managed-clusters/` | Workload clusters (NKPCluster mode: managed) |
+| `base/appdeployments/` | NKP ClusterApps (worked example: `fluent-bit`) |
+| `base/helm-releases/` | Third-party Helm charts (worked example: `vault-operator`) |
+| `base/custom-crds/` | Custom CRDs (worked example: Dex identity access) |
 | `base/versions/` | Centralized version registry with kustomize replacements |
 | `overlay/clusters/reference/` | Reference cluster overlay — copy for real clusters |
 | `scripts/` | `validate-overlay.sh`, `render.sh`, `verify-prune.sh` |
@@ -26,13 +28,15 @@ and three deployment models — modeled after real NKP production repos (`nkp-in
 
 ---
 
-## Three Deployment Models
+## Five Resource Categories
 
-| Model | Use Case | Example |
+| Category | Purpose | Example |
 |---|---|---|
-| **AppDeployment** | NKP ClusterApps (monitoring, logging, storage, backup) | `fluent-bit`, `kube-prometheus-stack`, `velero` |
-| **HelmRelease** | Third-party Helm charts (operators, custom apps) | `vault-operator`, `ingress-nginx` |
-| **Custom CRD** | Platform config (identity, networking, license) | Dex Connectors, MetalLB, VirtualGroups |
+| **Management Cluster** | Self-managed NKP cluster (kind → pivot → Kommander) | First cluster in the environment |
+| **Managed Clusters** | Workload clusters managed by the management cluster | Additional clusters for workloads |
+| **AppDeployments** | NKP ClusterApps (monitoring, logging, storage, backup) | `fluent-bit`, `kube-prometheus-stack`, `velero` |
+| **HelmReleases** | Third-party Helm charts (operators, custom apps) | `vault-operator`, `ingress-nginx` |
+| **Custom CRDs** | Platform config (Dex Connectors, MetalLB, VirtualGroups) | Identity, networking, license |
 
 See [PRACTICES.md](PRACTICES.md) Section 3 for the decision flow.
 
@@ -51,7 +55,8 @@ scripts/render.sh reference
 scripts/verify-prune.sh reference
 
 # Apply to a cluster
-kubectl apply -k overlay/clusters/<cluster>/cluster-apps
+kubectl apply -k overlay/clusters/<cluster>/mgmt          # management cluster
+kubectl apply -k overlay/clusters/<cluster>/managed-<name> # workload cluster
 ```
 
 ---
@@ -61,6 +66,8 @@ kubectl apply -k overlay/clusters/<cluster>/cluster-apps
 ```
 base/                              ← generic templates (no cluster-specific values)
 ├── versions/                      ← centralized version registry
+├── management-cluster/            ← NKPCluster (mode: management)
+├── managed-clusters/<cluster>/    ← NKPCluster (mode: managed)
 ├── appdeployments/<app>/          ← AppDeployment CR + ConfigMap
 ├── helm-releases/<app>/           ← HelmRepository + HelmRelease CR
 └── custom-crds/<app>/             ← Custom CRD (+ optional providers/)
@@ -68,12 +75,9 @@ base/                              ← generic templates (no cluster-specific va
 overlay/clusters/<cluster>/        ← per-cluster overrides
 ├── cluster-vars.yaml              ← non-secret ${VAR} values (ConfigMap)
 ├── .env.example                   ← .env template for local renders
-├── cluster-apps/
-│   ├── kustomization.yaml         ← aggregator + version replacements
-│   └── patches/<model>/<app>/     ← Component: base ref + JSON patches
-└── flux-system/
-    ├── gitrepository.yaml         ← Flux source CR
-    └── 01-cluster-apps.yaml       ← Flux Kustomization + postBuild
+├── bootstrap/                     ← Flux bootstrap CRs (applied manually)
+├── mgmt/                          ← management cluster Day-2 apps
+└── managed-<name>/                ← workload cluster Day-2 apps
 
 scripts/
 ├── validate-overlay.sh            ← build + undeclared ${VAR} check
@@ -89,6 +93,11 @@ scripts/
 
 - **`base/`** = generic, reusable templates. No IPs, DNs, passwords, or hostnames.
 - **`overlay/`** = per-cluster overrides. Never edit `base/` for a cluster.
+
+### Multi-Cluster Routing
+
+- `mgmt/` → namespace: `kommander`, clusterSelector: `${MGMT_CLUSTER_NAME}`
+- `managed-<name>/` → namespace: `kommander-default-workspace`, clusterSelector: `${WORKLOAD_CLUSTER_NAME}`
 
 ### Version Management
 
@@ -143,7 +152,8 @@ scripts/validate-overlay.sh <your-cluster>
 scripts/render.sh <your-cluster>
 
 # 5. Apply
-kubectl apply -k overlay/clusters/<your-cluster>/cluster-apps
+kubectl apply -k overlay/clusters/<your-cluster>/mgmt          # mgmt cluster
+kubectl apply -k overlay/clusters/<your-cluster>/managed-<n>   # workload cluster
 ```
 
 ---
@@ -183,8 +193,10 @@ scripts/verify-prune.sh reference       # prune policy compliance
 | Committing real secrets | Commit `*.example`, gitignore real |
 | `prune: true` on platform objects | Use model-appropriate prune |
 | ConfigMap after AppDeployment | List ConfigMap first in resources |
+| Applying NKPCluster to managed cluster | Apply to management cluster |
+| Bootstrap via Flux | Apply bootstrap CRs manually |
 
 ---
 
-*This is a template repository. Use it as the foundation for your own NKP application repositories.
+*This is a template repository. Use it as the foundation for your own NKP GitOps repositories.
 Start with [PRACTICES.md](PRACTICES.md) for the rules, then follow the guides in `docs/guides/`.*

@@ -1,0 +1,15 @@
+# RFC 6902 JSON patch — pin cluster-specific values onto the fluent-bit AppDeployment (managed-01).
+# Key differences from mgmt/:
+#   - namespace: kommander-default-workspace (workspace membership)
+#   - clusterSelector targets "managed-01"
+- op: replace
+  path: /metadata/namespace
+  value: "kommander-default-workspace"
+
+- op: replace
+  path: /spec/appRef/name
+  value: "${FLUENT_BIT_APP_REF}"
+
+- op: replace
+  path: /spec/clusterConfigOverrides/0/clusterSelector/matchExpressions/0/values/0
+  value: "${WORKLOAD_CLUSTER_NAME}"

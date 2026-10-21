@@ -1,0 +1,9 @@
+# Aggregator for the management cluster Day-2 apps.
+# Components link to each app's self-contained overlay folder.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - patches/appdeployments/fluent-bit
+  - patches/helm-releases/vault-operator
+  - patches/custom-crds/identity-access/dex

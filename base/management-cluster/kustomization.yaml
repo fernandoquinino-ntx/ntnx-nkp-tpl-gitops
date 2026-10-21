@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Management cluster — NKPCluster CR (mode: management) + Kommander config.
+# Applied to the kind bootstrap cluster, then pivoted to the self-managed cluster.
+resources:
+  - nkpcluster.yaml
+  - secrets.yaml
+  - kommander-bootstrap-config.yaml
+  - kommander-installer-config.yaml
+  - dockerhub-auth.yaml

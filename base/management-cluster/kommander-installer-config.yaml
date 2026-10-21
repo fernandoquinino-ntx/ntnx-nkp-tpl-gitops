@@ -1,0 +1,25 @@
+# Kommander installer configuration — renders the kommander.yaml installer config.
+# This ConfigMap is consumed by `nkp install kommander`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kommander-installer-config
+  namespace: "${MGMT_CLUSTER_NAMESPACE}"
+data:
+  kommander.yaml: |
+    clusterName: "${MGMT_CLUSTER_NAME}"
+    namespace: "${MGMT_CLUSTER_NAMESPACE}"
+    clusterDomain: "${CLUSTER_DOMAIN}"
+    kubernetesVersion: "${KUBERNETES_VERSION}"
+    nkpVersion: "${NKP_VERSION}"
+    apps:
+      - name: dex
+      - name: kube-prometheus-stack
+      - name: grafana-loki-v3
+      - name: fluent-bit
+      - name: velero
+      - name: external-dns
+    dockerhub:
+      secretRef:
+        name: dockerhub-auth
+        namespace: "${MGMT_CLUSTER_NAMESPACE}"

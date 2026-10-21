@@ -1,0 +1,7 @@
+# identity-access/dex — managed-01 workload cluster TOP Component.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../../../../../../base/custom-crds/identity-access/dex
+components:
+  - providers/ad # ← switch to providers/okta for Okta (OIDC)

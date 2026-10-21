@@ -1,0 +1,11 @@
+# Docker Hub authentication secret — used by Kommander for OCI image pulls.
+# Patches OCIRepositories to reference this secret (rate limit workaround).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dockerhub-auth
+  namespace: "${MGMT_CLUSTER_NAMESPACE}"
+type: Opaque
+stringData:
+  username: "${DOCKERHUB_USERNAME}"
+  password: "${DOCKERHUB_PASSWORD}"

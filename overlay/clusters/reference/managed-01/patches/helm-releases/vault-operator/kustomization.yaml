@@ -1,0 +1,10 @@
+# vault-operator HelmRelease — managed-01 workload cluster overlay Component.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../../../../../../base/helm-releases/vault-operator
+patches:
+  - path: helmrepository-patch.yaml
+    target: { group: source.toolkit.fluxcd.io, version: v1, kind: HelmRepository, name: vault-operator }
+  - path: helmrelease-patch.yaml
+    target: { group: helm.toolkit.fluxcd.io, version: v2, kind: HelmRelease, name: vault-operator }
