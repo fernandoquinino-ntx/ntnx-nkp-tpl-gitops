@@ -1,0 +1,23 @@
+# Flux Kustomization — the Dex app for the `reference` cluster.
+# Syncs ./overlay/clusters/reference/cluster-apps and applies ${VAR} substitution AFTER the
+# kustomize build (Flux postBuild). prune:false — never cascade-delete Kommander objects.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: dex
+  namespace: kommander-flux
+spec:
+  interval: 5m
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: ntnx-nkp-tpl-repo
+    namespace: kommander-flux
+  path: ./overlay/clusters/reference/cluster-apps
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+      - kind: Secret
+        name: cluster-secrets       # holds DEX_LDAP_BIND_PASSWORD
+        optional: true

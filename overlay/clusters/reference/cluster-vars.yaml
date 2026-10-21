@@ -1,0 +1,23 @@
+# cluster-vars — non-secret ${VAR} values for this cluster.
+# Consumed by Flux `postBuild.substituteFrom` (flux-system/01-cluster-apps.yaml).
+# Namespace MUST equal the Flux Kustomization namespace (`kommander-flux`).
+# Secrets (passwords) belong in a Secret named `cluster-secrets`, never here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-vars
+  namespace: kommander-flux
+data:
+  # --- AD (ldap) — DEFAULT provider ---
+  DEX_LDAP_HOST: "dc01.ad.example.local:636"
+  DEX_LDAP_BIND_DN: "CN=svc-nkp,CN=Users,DC=ad,DC=example,DC=local"
+  DEX_LDAP_USER_BASE_DN: "DC=ad,DC=example,DC=local"
+  DEX_LDAP_GROUP_BASE_DN: "DC=ad,DC=example,DC=local"
+  DEX_LDAP_INSECURE_SKIP_VERIFY: "true" # "false" to validate the DC cert (needs the CA Secret)
+  DEX_LDAP_ROOT_CA_SECRET: "ad-root-ca" # CA Secret name — used only when CA trust is enabled
+  # --- Okta (oidc) — provider switch (see providers/okta/) ---
+  OKTA_ISSUER: "https://example.okta.com/oauth2/default"
+  OKTA_REDIRECT_URI: "https://kommander.example.com/dex/callback"
+  OKTA_CLIENT_SECRET_NAME: "okta-client" # Secret keys: client-id, client-secret
+  OKTA_CLIENT_ID: "0oaXXXXXXXXXXXXXXXX" # Okta app Client ID (public)
+  OKTA_GROUP: "NKP-Admins" # admin group name -> VirtualGroup/CRB subject `oidc:NKP-Admins`

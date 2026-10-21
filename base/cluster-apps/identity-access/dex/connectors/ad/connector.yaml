@@ -1,0 +1,51 @@
+# Dex Connector — type `ldap` (Active Directory). APPLIED by this app.
+#
+# Generic: environment-specific values use ${VAR} and are pinned per cluster by the overlay
+# (patches/identity-access/dex/connector.yaml) or by Flux postBuild / scripts/render.sh.
+#
+# Every option is explained in the app README.md.
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: ad-connector # referenced by the overlay patch target and by RBAC group claims
+  namespace: kommander
+spec:
+  enabled: true # true = connector is offered on the login page
+  type: ldap # ldap | saml | oidc | github (CRD-supported set)
+  displayName: Active Directory # label shown on the login page
+  ldap:
+    host: "${DEX_LDAP_HOST}" # <dc-fqdn>:636 ; port guessed (636 TLS / 389 plain)
+    insecureNoSSL: false # false => LDAPS. NEVER true together with startTLS.
+    insecureSkipVerify: "${DEX_LDAP_INSECURE_SKIP_VERIFY}" # "true" = skip DC cert check | "false" = validate
+    # --- Trust the DC certificate (OPTIONAL) ---
+    # The CRD has no rootCAData/rootCA; it reads a CA PEM from a Secret via rootCASecretRef
+    # (key `tls.crt`). That Secret is a per-cluster OVERLAY file — see
+    # overlay/clusters/reference/cluster-apps/patches/identity-access/dex/ca-secret.yaml.example.
+    # To enable: set insecureSkipVerify="false", uncomment the two lines below, uncomment
+    # `- ca-secret.yaml` in the overlay Component, and provide the CA PEM.
+    # rootCASecretRef:
+    #   name: "${DEX_LDAP_ROOT_CA_SECRET}"
+    # startTLS: false                     # alternative to LDAPS: upgrade :389 to TLS
+    bindDN: "${DEX_LDAP_BIND_DN}" # read-only service account DN, e.g. CN=svc-nkp,CN=Users,DC=...
+    bindSecretRef:
+      name: ldap-bind # Opaque Secret, key `password` (see secret.yaml)
+    # bindPW: "..."                       # plaintext alternative to bindSecretRef — avoid
+    # usernamePrompt: "Username"          # label of the login form's username field
+    userSearch:
+      baseDN: "${DEX_LDAP_USER_BASE_DN}" # root of the user search (AD: the domain DN)
+      filter: (objectClass=person) # combined as (&<filter>(<username>=<input>))
+      username: sAMAccountName # AD attribute matched against the typed username
+      # scope: sub                        # sub (default) | one
+      idAttr: distinguishedName # AD: unique id claim (sub)
+      emailAttr: userPrincipalName # AD: email claim
+      # nameAttr: displayName             # claim used for the display name
+      # preferredUsernameAttr: sAMAccountName
+      # emailSuffix: example.local         # synthesize email = <id>@<suffix>
+    groupSearch:
+      baseDN: "${DEX_LDAP_GROUP_BASE_DN}" # root of the group search (AD: the domain DN)
+      filter: (objectClass=group) # AD groups
+      # scope: sub
+      nameAttr: cn # group claim value = cn (=> `oidc:<cn>` after login)
+      userMatchers:
+        - userAttr: DN # match group.member against the user's DN
+          groupAttr: member

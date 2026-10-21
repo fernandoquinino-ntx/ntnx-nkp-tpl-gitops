@@ -1,0 +1,35 @@
+# RFC 6902 JSON patch — pin the concrete AD/LDAP values for this cluster onto the
+# generic base `Connector/ad-connector` (base keeps its ${VAR} placeholders).
+# Wired by the component in this folder (kustomization.yaml, kind: Component).
+#
+# Values from the reference lab. AD forest = ad.example.local, so the domain DN is
+# DC=ad,DC=example,DC=local (bind account lives in CN=Users).
+- op: replace
+  path: /spec/displayName
+  value: "Example AD"
+
+- op: replace
+  path: /spec/ldap/host
+  value: "dc01.ad.example.local:636"
+
+- op: replace
+  path: /spec/ldap/bindDN
+  value: "CN=svc-nkp,CN=Users,DC=ad,DC=example,DC=local"
+
+- op: replace
+  path: /spec/ldap/userSearch/baseDN
+  value: "DC=ad,DC=example,DC=local"
+
+- op: replace
+  path: /spec/ldap/groupSearch/baseDN
+  value: "DC=ad,DC=example,DC=local"
+
+# --- rootCA trust (OPTIONAL) — uncomment to VALIDATE the DC certificate (LDAPS) ---------------
+# Also: uncomment `- ca-secret.yaml` in this folder's kustomization.yaml and create that Secret
+# from ca-secret.yaml.example. Leave these commented to skip verification (lab default).
+# - op: replace
+#   path: /spec/ldap/insecureSkipVerify
+#   value: false
+# - op: add
+#   path: /spec/ldap/rootCASecretRef
+#   value: { name: "ad-root-ca" }

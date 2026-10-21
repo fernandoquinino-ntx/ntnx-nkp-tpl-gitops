@@ -1,0 +1,26 @@
+# Secrets / generated — never commit
+overlay/clusters/*/.env
+
+# Secret files under the overlay — NEVER commit. Commit the matching *.example instead,
+# then `cp <file>.example <file>` and fill the real values before applying.
+overlay/**/secret.yaml
+overlay/**/secret.yml
+overlay/**/*.secret.yaml
+overlay/**/*.secret.yml
+overlay/**/secret-patch.yaml
+overlay/**/secret-patch.yml
+overlay/**/*secret*.yaml
+overlay/**/*secret*.yml
+overlay/**/*sops*.yaml
+overlay/**/*credentials*.yaml
+
+# Committed examples are always tracked
+!overlay/**/*.example
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Backup output (scripts/identity-backup-restore.sh) — may contain secrets
+backup/
+**/backup/

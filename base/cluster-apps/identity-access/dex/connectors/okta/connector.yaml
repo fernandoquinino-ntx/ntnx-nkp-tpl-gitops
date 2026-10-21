@@ -1,0 +1,33 @@
+# Okta via the Dex **OIDC** connector.
+# NKP/Dex has NO native `okta` type — Okta is a standard OpenID Connect provider (type: oidc).
+#
+# This is the SHARED Okta/OIDC template (common settings). It is NOT applied by the base app;
+# the overlay enables it via providers/okta/ (see
+# overlay/clusters/reference/cluster-apps/patches/identity-access/dex/providers/okta/).
+# Generic: values are ${VAR}, pinned per cluster in the overlay.
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: okta # referenced by the overlay provider (disable/enable + patch target)
+  namespace: kommander
+spec:
+  enabled: true
+  type: oidc
+  displayName: Okta
+  oidc:
+    issuer: "${OKTA_ISSUER}" # https://<org>.okta.com  (or https://<org>.okta.com/oauth2/default)
+    redirectURI: "${OKTA_REDIRECT_URI}" # https://<kommander-host>/dex/callback
+    clientSecretRef:
+      name: "${OKTA_CLIENT_SECRET_NAME}" # Opaque Secret, keys `client-id` + `client-secret`
+    # `groups` requires a matching claim/scope configured in Okta
+    scopes: [openid, profile, email, groups]
+    insecureEnableGroups: true # emit the `groups` claim (=> `oidc:<group>` after login)
+    insecureSkipEmailVerified: true # kube-oidc-proxy requires an email_verified claim
+    userIDKey: sub # STANDARD: k8s user id claim (sub | email)
+    userNameKey: email # STANDARD: k8s username claim (email | preferred_username | name)
+    # overrideClaimMapping: true
+    # claimMapping:
+    #   email: email
+    #   groups: groups
+    #   preferred_username: preferred_username
+    # promptType: consent          # offline-access prompt

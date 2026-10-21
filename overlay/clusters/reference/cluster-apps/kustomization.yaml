@@ -1,0 +1,9 @@
+# Aggregator for the platform layer of this cluster.
+# This file ONLY links to each app's self-contained overlay folder
+# (patches/<category>/<app>/), which carries its own base ref, values/generators and patches.
+# Add an app by adding one entry under `components:`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - patches/identity-access/dex

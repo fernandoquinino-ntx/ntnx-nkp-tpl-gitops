@@ -1,0 +1,10 @@
+apiVersion: kommander.mesosphere.io/v1beta1
+kind: VirtualGroup
+metadata:
+  name: admins
+  namespace: kommander
+spec:
+  subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: Group
+      name: "oidc:NKP-Admins" # admin group (set to your IdP group)
